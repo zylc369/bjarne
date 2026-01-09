@@ -1,0 +1,435 @@
+#!/bin/bash
+# Bjarne - Autonomous AI development system
+#
+# Commands:
+#   bjarne init <idea.md>  - Bootstrap project from idea file
+#   bjarne [n]             - Run n iterations (default 25)
+#
+# Loop: PLAN → EXECUTE → REVIEW → FIX
+#
+# idea.md is freeform - write whatever you want. INIT will figure it out.
+
+set -e
+
+# Colors
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+RED='\033[0;31m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+# Files
+TASK_FILE="TASKS.md"
+CONTEXT_FILE="CONTEXT.md"
+SPECS_DIR="specs"
+TASK_STATE=".task"
+
+#==============================================================================
+# INIT COMMAND - Bootstrap from idea file
+#==============================================================================
+if [[ "$1" == "init" ]]; then
+    IDEA_FILE="$2"
+
+    if [[ -z "$IDEA_FILE" ]]; then
+        echo -e "${RED}Usage: bjarne init <idea.md>${NC}"
+        exit 1
+    fi
+
+    if [[ ! -f "$IDEA_FILE" ]]; then
+        echo -e "${RED}Error: $IDEA_FILE not found${NC}"
+        exit 1
+    fi
+
+    echo -e "${CYAN}Bjarne initializing project from: $IDEA_FILE${NC}"
+
+    # Detect existing environment
+    DETECTED=""
+    [[ -f "package.json" ]] && DETECTED="${DETECTED}Found: package.json (Node.js/JavaScript)\n"
+    [[ -f "tsconfig.json" ]] && DETECTED="${DETECTED}Found: tsconfig.json (TypeScript)\n"
+    [[ -f "composer.json" ]] && DETECTED="${DETECTED}Found: composer.json (PHP)\n"
+    [[ -f "requirements.txt" ]] && DETECTED="${DETECTED}Found: requirements.txt (Python)\n"
+    [[ -f "pyproject.toml" ]] && DETECTED="${DETECTED}Found: pyproject.toml (Python)\n"
+    [[ -f "pubspec.yaml" ]] && DETECTED="${DETECTED}Found: pubspec.yaml (Flutter/Dart)\n"
+    [[ -f "Cargo.toml" ]] && DETECTED="${DETECTED}Found: Cargo.toml (Rust)\n"
+    [[ -f "go.mod" ]] && DETECTED="${DETECTED}Found: go.mod (Go)\n"
+    [[ -f "CLAUDE.md" ]] && DETECTED="${DETECTED}Found: CLAUDE.md (existing project rules)\n"
+    [[ -f ".env.example" ]] && DETECTED="${DETECTED}Found: .env.example (needs .env setup)\n"
+    [[ -d "node_modules" ]] || [[ -f "package.json" ]] && [[ ! -d "node_modules" ]] && DETECTED="${DETECTED}Note: node_modules missing - needs npm install\n"
+    [[ -d "vendor" ]] || [[ -f "composer.json" ]] && [[ ! -d "vendor" ]] && DETECTED="${DETECTED}Note: vendor missing - needs composer install\n"
+
+    read -r -d '' INIT_PROMPT << 'INIT_EOF' || true
+# PROJECT INITIALIZATION
+
+You have an idea file (freeform, any format) and detected environment info.
+Your job: Create project structure that SUPPORTS the user's vision.
+
+## Core Principle: RESPECT THE IDEA
+- User's idea is the source of truth - don't change their concept
+- If they specified something, use it exactly
+- If they didn't specify, infer sensibly from context
+- Fill gaps to make it buildable, but preserve their intent
+- A detailed spec needs less inference; a vague idea needs more
+
+## Phase 1: Understand
+1. Read the idea file - extract what the user actually wants
+2. Identify what's SPECIFIED (use as-is) vs what's UNSPECIFIED (infer)
+3. Check detected environment for existing tech stack
+4. If CLAUDE.md exists, read for existing project rules
+
+## Phase 2: Infer Missing Pieces (only if not specified)
+For anything the user didn't specify, make smart choices:
+- Tech stack: Use detected, or pick appropriate for project type
+- Testing: Default to basic tests unless user says otherwise
+- Architecture: Simple and appropriate for scope
+- Scope: Take idea at face value - don't expand or reduce
+
+## Phase 3: Create Files
+
+### 1. CONTEXT.md (static reference for development)
+```markdown
+# [Project Name from idea]
+
+## What We're Building
+[User's vision - preserve their words/intent]
+
+## Tech Stack
+[Detected or inferred]
+
+## Commands
+- Build: [detected or standard]
+- Test: [detected or standard]
+- Run: [detected or standard]
+
+## Key Decisions
+[Only if user specified preferences, constraints, or requirements]
+
+## References
+- specs/ for detailed specifications
+```
+
+### 2. TASKS.md
+Break the idea into atomic tasks:
+- Setup tasks first (if node_modules/vendor/.env missing)
+- Then features from the idea (in logical order)
+- Each task completable in one iteration
+- Format: `- [ ] Task description`
+- Number of tasks should match project scope (don't pad)
+
+### 3. specs/ folder (only if needed)
+Create specs that ADD VALUE - don't create empty scaffolds:
+- API project with endpoints → specs/API.md with routes, payloads
+- UI with specific design → specs/DESIGN_SYSTEM.md
+- Complex data model → specs/DATA_MODEL.md
+- Skip specs that would just repeat the idea
+
+## What NOT to Do
+- Don't add features the user didn't ask for
+- Don't create specs that just restate obvious things
+- Don't expand scope beyond what they described
+- Don't change their architectural choices if specified
+- Don't add "nice to have" tasks - stick to the idea
+
+Read the idea, understand the vision, build the support structure.
+INIT_EOF
+
+    IDEA_CONTENT=$(cat "$IDEA_FILE")
+
+    # Read CLAUDE.md if exists
+    CLAUDE_MD=""
+    if [[ -f "CLAUDE.md" ]]; then
+        CLAUDE_MD="
+
+## Existing CLAUDE.md (project rules to respect):
+$(cat CLAUDE.md)
+"
+    fi
+
+    claude -p --dangerously-skip-permissions "# IDEA FILE CONTENT:
+
+$IDEA_CONTENT
+
+---
+
+## DETECTED ENVIRONMENT:
+$DETECTED
+$CLAUDE_MD
+---
+
+$INIT_PROMPT"
+
+    # Verify files were created
+    if [[ -f "$CONTEXT_FILE" ]] && [[ -f "$TASK_FILE" ]]; then
+        echo -e "${GREEN}Project initialized!${NC}"
+        echo -e "  - $CONTEXT_FILE"
+        echo -e "  - $TASK_FILE"
+        [[ -d "$SPECS_DIR" ]] && echo -e "  - $SPECS_DIR/"
+        echo ""
+        echo -e "${CYAN}Run 'bjarne' to start development${NC}"
+    else
+        echo -e "${RED}Initialization incomplete - check output above${NC}"
+    fi
+
+    exit 0
+fi
+
+#==============================================================================
+# MAIN LOOP - PLAN → EXECUTE → REVIEW → FIX
+#==============================================================================
+
+MAX_ITERATIONS=${1:-25}
+
+# Prompts
+read -r -d '' PLAN_PROMPT << 'PLAN_EOF' || true
+# PLAN STEP
+
+You are planning ONE task from TASKS.md.
+
+## Your Job
+1. Read CONTEXT.md for project info and commands
+2. Read TASKS.md - find the FIRST unchecked `- [ ]` task
+3. Read specs/ folder for detailed specifications
+4. Search the codebase for existing patterns, utilities, components
+5. Write a plan to .task file
+
+## Write to .task file:
+```
+TASK: [exact task text from TASKS.md]
+
+EXISTING_CODE:
+- [file/function to reuse]
+
+PATTERNS:
+- [pattern from codebase to follow]
+
+PLAN:
+1. [specific step]
+2. [specific step]
+
+FILES_TO_CREATE: [list]
+FILES_TO_MODIFY: [list]
+TEST_COMMAND: [from CONTEXT.md or detected]
+```
+
+## Architecture Principles
+- REUSE existing code - search first
+- EXTEND existing files when logical
+- ONE clear responsibility per file
+- Follow existing patterns in codebase
+- Match existing code style
+
+DO NOT implement. Just plan.
+PLAN_EOF
+
+read -r -d '' EXECUTE_PROMPT << 'EXEC_EOF' || true
+# EXECUTE STEP
+
+Read .task file. Follow the plan exactly.
+
+## Rules
+- Follow the PLAN steps in order
+- REUSE code listed in EXISTING_CODE
+- Follow PATTERNS for consistency
+- Match existing code style in the project
+- Clear names, no abbreviations
+- Handle errors meaningfully
+
+## Code Quality (adapt to project's tech stack)
+- Keep functions focused (single responsibility)
+- Keep files cohesive (related code together)
+- Comments explain WHY not WHAT
+
+## When Done
+Mark the task complete in TASKS.md with a short note if you learned something useful:
+- Simple completion: `- [x] Task description`
+- With note: `- [x] Task description → Note: [one-line insight]`
+
+Only add a note if it would help future tasks (e.g., "used X instead of Y", "requires Z first").
+
+Then commit: "feat: [task description]"
+EXEC_EOF
+
+read -r -d '' REVIEW_PROMPT << 'REVIEW_EOF' || true
+# REVIEW STEP
+
+Review implementation against .task plan.
+
+## Check Plan Compliance
+- Was EXISTING_CODE reused?
+- Were PATTERNS followed?
+- All PLAN steps done?
+
+## Auto-Detect Focus Areas
+Based on what was implemented, check relevant areas:
+
+**If touched auth/passwords/tokens/API keys:**
+- Input validation and sanitization
+- No hardcoded secrets
+- Secure token handling
+
+**If touched database/SQL:**
+- Prepared statements (no SQL injection)
+- Proper error handling
+
+**If touched user input/forms:**
+- Input validation
+- XSS prevention (escape output)
+
+**If touched API endpoints:**
+- Proper response format
+- Error responses
+- Authentication checks
+
+**If touched async/state:**
+- Race condition checks
+- Error state handling
+
+**If touched UI:**
+- Matches design system (if specs/DESIGN_SYSTEM.md exists)
+- Accessibility basics
+
+## Run Checks
+Use TEST_COMMAND from .task file (or detect from CONTEXT.md)
+
+## Classify Issues by Severity
+- 🔴 BLOCKER: Security vulnerabilities, data loss risk, crashes
+- 🟡 ISSUE: Bugs, logic errors, missing error handling
+- 🟢 SUGGESTION: Style improvements, minor optimizations
+
+## Check Against Pending Tasks
+Before flagging unused code, check TASKS.md:
+- Will a pending task use it? → Not an issue, note "scaffolding for task X"
+- No pending task needs it? → Flag as ISSUE: remove dead code
+
+Don't suppress warnings for scaffolding. Don't keep actual dead code.
+
+## Append to .task:
+```
+REVIEW_RESULT:
+BUILD_PASSED: yes/no
+TESTS_PASSED: yes/no
+
+BLOCKERS:
+- [if any]
+
+ISSUES:
+- [if any]
+
+SUGGESTIONS:
+- [if any, brief]
+```
+
+If no issues found, just write:
+```
+REVIEW_RESULT:
+BUILD_PASSED: yes
+TESTS_PASSED: yes
+ISSUES: none
+```
+REVIEW_EOF
+
+read -r -d '' FIX_PROMPT << 'FIX_EOF' || true
+# FIX STEP
+
+Read REVIEW_RESULT in .task file. Fix issues by priority.
+
+## Priority Order
+1. 🔴 BLOCKERS first - these must be fixed
+2. 🟡 ISSUES second - fix if straightforward
+3. 🟢 SUGGESTIONS - fix only if trivial
+
+## Your Job
+1. Fix BLOCKERS (mandatory)
+2. Fix ISSUES (should fix)
+3. Consider SUGGESTIONS (nice to have)
+4. Re-run TEST_COMMAND to confirm
+5. Commit fixes: "fix: [description]"
+
+## After Fixing
+If all fixed + tests pass:
+- Delete .task file
+- Ensure task is marked `- [x]` in TASKS.md (with note if useful)
+
+If cannot fix (blocked):
+- Unmark task in TASKS.md back to `- [ ]`
+- Add blocker note: `- [ ] Task description ⚠️ Blocked: [reason]`
+- Keep .task file for context
+FIX_EOF
+
+# Check required files
+if [[ ! -f "$TASK_FILE" ]]; then
+    echo -e "${RED}Error: $TASK_FILE not found${NC}"
+    echo -e "Run 'bjarne init <idea.md>' first"
+    exit 1
+fi
+
+if [[ ! -f "$CONTEXT_FILE" ]]; then
+    echo -e "${YELLOW}Warning: $CONTEXT_FILE not found${NC}"
+fi
+
+# Load context fresh each iteration
+load_context() {
+    CONTEXT=""
+    if [[ -f "$CONTEXT_FILE" ]]; then
+        CONTEXT=$(cat "$CONTEXT_FILE")
+    fi
+    # Also include CLAUDE.md if exists (project rules)
+    if [[ -f "CLAUDE.md" ]]; then
+        CONTEXT="$CONTEXT
+
+## Project Rules (from CLAUDE.md):
+$(cat CLAUDE.md)"
+    fi
+}
+
+echo -e "${CYAN}Bjarne starting - max $MAX_ITERATIONS iterations${NC}"
+echo -e "${CYAN}Loop: PLAN → EXECUTE → REVIEW → FIX${NC}"
+echo ""
+
+for i in $(seq 1 $MAX_ITERATIONS); do
+    # Load context fresh each iteration
+    load_context
+
+    # Check for remaining tasks
+    if ! grep -q '^\s*- \[ \]' "$TASK_FILE"; then
+        echo -e "${GREEN}All tasks complete!${NC}"
+        rm -f "$TASK_STATE"
+        exit 0
+    fi
+
+    REMAINING=$(grep -c '^\s*- \[ \]' "$TASK_FILE" || echo "0")
+    echo -e "${YELLOW}=== Iteration $i/$MAX_ITERATIONS ($REMAINING tasks remaining) ===${NC}"
+
+    # PLAN
+    echo -e "${BLUE}[1/4 PLAN]${NC} Analyzing..."
+    claude -p --dangerously-skip-permissions "$CONTEXT
+
+$PLAN_PROMPT"
+
+    if [[ ! -f "$TASK_STATE" ]]; then
+        echo -e "${RED}Plan failed - no .task file${NC}"
+        continue
+    fi
+
+    # EXECUTE
+    echo -e "${BLUE}[2/4 EXECUTE]${NC} Implementing..."
+    claude -p --dangerously-skip-permissions "$CONTEXT
+
+$EXECUTE_PROMPT"
+
+    # REVIEW
+    echo -e "${BLUE}[3/4 REVIEW]${NC} Reviewing..."
+    claude -p --dangerously-skip-permissions "$CONTEXT
+
+$REVIEW_PROMPT"
+
+    # FIX
+    echo -e "${BLUE}[4/4 FIX]${NC} Fixing..."
+    claude -p --dangerously-skip-permissions "$CONTEXT
+
+$FIX_PROMPT"
+
+    sleep 2
+done
+
+echo -e "${YELLOW}Max iterations reached${NC}"
