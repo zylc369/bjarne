@@ -6,9 +6,11 @@ Autonomous AI development loop. Give it an idea, it builds the project.
 
 ```
 idea.md → INIT → [PLAN → EXECUTE → REVIEW → FIX] × N → Done
+                              ↑
+                    notes.md → REFRESH (add more tasks)
 ```
 
-Bjarne reads your idea, creates a task list, then loops through each task autonomously until everything is built.
+Bjarne reads your idea, creates a task list, then loops through each task autonomously until everything is built. After testing, you can add more tasks with `refresh`.
 
 ## Requirements
 
@@ -93,6 +95,11 @@ This creates:
 - `TASKS.md` - Checkbox task list
 - `specs/` - Detailed specs (if needed)
 
+**Works on existing projects too!** If you run `init` in a folder with existing code, Bjarne will:
+- Detect and explore your codebase
+- Understand what's already built
+- Create tasks that build ON your existing code
+
 ### 3. Run
 
 ```bash
@@ -105,6 +112,28 @@ Want more iterations?
 ```bash
 bjarne 50
 ```
+
+### 4. Refresh (optional)
+
+After Bjarne finishes, test your project manually. Found bugs? Want new features? Write freeform notes:
+
+```markdown
+# notes.md
+
+The login button doesn't work on mobile
+Add a dark mode toggle
+The API returns 500 when email is empty
+Would be nice to have a loading spinner
+```
+
+Then refresh:
+
+```bash
+bjarne refresh notes.md
+bjarne  # run again to work through new tasks
+```
+
+Bjarne reads your notes, adds tasks to `TASKS.md`, and you're back in the loop.
 
 ## What Happens Each Iteration
 

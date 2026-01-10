@@ -2,12 +2,13 @@
 # Bjarne - Autonomous AI development system
 #
 # Commands:
-#   bjarne init <idea.md>  - Bootstrap project from idea file
-#   bjarne [n]             - Run n iterations (default 25)
+#   bjarne init <idea.md>     - Bootstrap project from idea file (new or existing)
+#   bjarne refresh <notes.md> - Add tasks from freeform notes (bugs, features, tweaks)
+#   bjarne [n]                - Run n iterations (default 25)
 #
 # Loop: PLAN → EXECUTE → REVIEW → FIX
 #
-# idea.md is freeform - write whatever you want. INIT will figure it out.
+# idea.md/notes.md are freeform - write whatever you want. Bjarne will figure it out.
 
 set -e
 
@@ -26,7 +27,7 @@ SPECS_DIR="specs"
 TASK_STATE=".task"
 
 #==============================================================================
-# INIT COMMAND - Bootstrap from idea file
+# INIT COMMAND - Bootstrap from idea file (works on new or existing projects)
 #==============================================================================
 if [[ "$1" == "init" ]]; then
     IDEA_FILE="$2"
@@ -41,7 +42,16 @@ if [[ "$1" == "init" ]]; then
         exit 1
     fi
 
-    echo -e "${CYAN}Bjarne initializing project from: $IDEA_FILE${NC}"
+    # Detect if this is an existing project (has source code files)
+    EXISTING_PROJECT="false"
+    SRC_FILES=$(find . -maxdepth 3 -type f \( -name "*.js" -o -name "*.ts" -o -name "*.py" -o -name "*.php" -o -name "*.go" -o -name "*.rs" -o -name "*.java" -o -name "*.tsx" -o -name "*.jsx" \) 2>/dev/null | grep -v node_modules | grep -v vendor | grep -v __pycache__ | head -20)
+    [[ -n "$SRC_FILES" ]] && EXISTING_PROJECT="true"
+
+    if [[ "$EXISTING_PROJECT" == "true" ]]; then
+        echo -e "${CYAN}Bjarne initializing EXISTING project from: $IDEA_FILE${NC}"
+    else
+        echo -e "${CYAN}Bjarne initializing NEW project from: $IDEA_FILE${NC}"
+    fi
 
     # Detect existing environment
     DETECTED=""
@@ -57,6 +67,21 @@ if [[ "$1" == "init" ]]; then
     [[ -f ".env.example" ]] && DETECTED="${DETECTED}Found: .env.example (needs .env setup)\n"
     [[ -d "node_modules" ]] || [[ -f "package.json" ]] && [[ ! -d "node_modules" ]] && DETECTED="${DETECTED}Note: node_modules missing - needs npm install\n"
     [[ -d "vendor" ]] || [[ -f "composer.json" ]] && [[ ! -d "vendor" ]] && DETECTED="${DETECTED}Note: vendor missing - needs composer install\n"
+
+    # For existing projects, include source file list
+    EXISTING_CODE_INFO=""
+    if [[ "$EXISTING_PROJECT" == "true" ]]; then
+        EXISTING_CODE_INFO="
+## EXISTING SOURCE FILES (explore these to understand what's built):
+$SRC_FILES
+
+This is an EXISTING project. You MUST:
+1. Explore and understand the existing codebase structure
+2. Read key files to understand what's already implemented
+3. Document existing functionality in CONTEXT.md
+4. Create tasks that BUILD ON existing code, not duplicate it
+"
+    fi
 
     read -r -d '' INIT_PROMPT << 'INIT_EOF' || true
 # PROJECT INITIALIZATION
@@ -76,12 +101,16 @@ Your job: Create project structure that SUPPORTS the user's vision.
 2. Identify what's SPECIFIED (use as-is) vs what's UNSPECIFIED (infer)
 3. Check detected environment for existing tech stack
 4. If CLAUDE.md exists, read for existing project rules
+5. **IF EXISTING PROJECT**: Explore the codebase! Read source files to understand:
+   - What's already built
+   - Code patterns and architecture used
+   - What the idea is asking to ADD or CHANGE vs what exists
 
 ## Phase 2: Infer Missing Pieces (only if not specified)
 For anything the user didn't specify, make smart choices:
 - Tech stack: Use detected, or pick appropriate for project type
 - Testing: Default to basic tests unless user says otherwise
-- Architecture: Simple and appropriate for scope
+- Architecture: Simple and appropriate for scope (or follow existing patterns)
 - Scope: Take idea at face value - don't expand or reduce
 
 ## Phase 3: Create Files
@@ -92,6 +121,9 @@ For anything the user didn't specify, make smart choices:
 
 ## What We're Building
 [User's vision - preserve their words/intent]
+
+## Existing Codebase (if applicable)
+[Summary of what already exists - key files, patterns, architecture]
 
 ## Tech Stack
 [Detected or inferred]
@@ -111,6 +143,7 @@ For anything the user didn't specify, make smart choices:
 ### 2. TASKS.md
 Break the idea into atomic tasks:
 - Setup tasks first (if node_modules/vendor/.env missing)
+- **For existing projects**: Tasks should reference existing code to modify/extend
 - Then features from the idea (in logical order)
 - Each task completable in one iteration
 - Format: `- [ ] Task description`
@@ -129,6 +162,7 @@ Create specs that ADD VALUE - don't create empty scaffolds:
 - Don't expand scope beyond what they described
 - Don't change their architectural choices if specified
 - Don't add "nice to have" tasks - stick to the idea
+- **For existing projects**: Don't recreate what already exists!
 
 Read the idea, understand the vision, build the support structure.
 INIT_EOF
@@ -153,6 +187,7 @@ $IDEA_CONTENT
 
 ## DETECTED ENVIRONMENT:
 $DETECTED
+$EXISTING_CODE_INFO
 $CLAUDE_MD
 ---
 
@@ -180,6 +215,124 @@ $INIT_PROMPT"
     else
         echo -e "${RED}Initialization incomplete - check output above${NC}"
     fi
+
+    exit 0
+fi
+
+#==============================================================================
+# REFRESH COMMAND - Add tasks from freeform notes
+#==============================================================================
+if [[ "$1" == "refresh" ]]; then
+    NOTES_FILE="$2"
+
+    if [[ -z "$NOTES_FILE" ]]; then
+        echo -e "${RED}Usage: bjarne refresh <notes.md>${NC}"
+        exit 1
+    fi
+
+    if [[ ! -f "$NOTES_FILE" ]]; then
+        echo -e "${RED}Error: $NOTES_FILE not found${NC}"
+        exit 1
+    fi
+
+    if [[ ! -f "$CONTEXT_FILE" ]]; then
+        echo -e "${RED}Error: $CONTEXT_FILE not found - run 'bjarne init' first${NC}"
+        exit 1
+    fi
+
+    if [[ ! -f "$TASK_FILE" ]]; then
+        echo -e "${RED}Error: $TASK_FILE not found - run 'bjarne init' first${NC}"
+        exit 1
+    fi
+
+    echo -e "${CYAN}Bjarne refreshing project from: $NOTES_FILE${NC}"
+
+    read -r -d '' REFRESH_PROMPT << 'REFRESH_EOF' || true
+# PROJECT REFRESH
+
+You have freeform notes from the user after testing/reviewing the project.
+Your job: Update CONTEXT.md if needed and ADD new tasks to TASKS.md.
+
+## The Notes May Contain
+- Bug reports from manual testing
+- New feature requests
+- Tweaks and adjustments needed
+- Things that didn't work as expected
+- New ideas to add
+
+## Your Job
+1. Read the notes file carefully
+2. Read current CONTEXT.md to understand the project
+3. Read current TASKS.md to see what's done and what's pending
+4. Explore relevant code if needed to understand the issues
+
+## What to Update
+
+### CONTEXT.md (only if needed)
+- Add new architectural decisions if the notes change direction
+- Update "What We're Building" only if scope genuinely changed
+- Usually you WON'T need to change CONTEXT.md
+
+### TASKS.md (main update)
+- KEEP all existing tasks (completed and pending)
+- ADD new tasks at the bottom based on the notes
+- Group related new tasks together
+- Each task should be atomic (one iteration)
+- Format: `- [ ] Task description`
+
+## Task Naming
+- Bug fix: `- [ ] Fix: [description of bug]`
+- New feature: `- [ ] Add: [feature description]`
+- Tweak/adjust: `- [ ] Adjust: [what to change]`
+- Refactor: `- [ ] Refactor: [what to improve]`
+
+## What NOT to Do
+- Don't remove or reorder existing tasks
+- Don't mark tasks complete (that's for the dev loop)
+- Don't expand beyond what's in the notes
+- Don't duplicate existing tasks
+
+Read the notes, understand what's needed, update the project.
+REFRESH_EOF
+
+    NOTES_CONTENT=$(cat "$NOTES_FILE")
+    CONTEXT_CONTENT=$(cat "$CONTEXT_FILE")
+    TASKS_CONTENT=$(cat "$TASK_FILE")
+
+    # Read CLAUDE.md if exists
+    CLAUDE_MD=""
+    if [[ -f "CLAUDE.md" ]]; then
+        CLAUDE_MD="
+## Project Rules (from CLAUDE.md):
+$(cat CLAUDE.md)
+"
+    fi
+
+    claude -p --dangerously-skip-permissions "# USER'S NOTES:
+
+$NOTES_CONTENT
+
+---
+
+## CURRENT CONTEXT.md:
+$CONTEXT_CONTENT
+
+---
+
+## CURRENT TASKS.md:
+$TASKS_CONTENT
+
+$CLAUDE_MD
+---
+
+$REFRESH_PROMPT"
+
+    # Show result
+    NEW_TASKS=$(grep -c '^\s*- \[ \]' "$TASK_FILE" 2>/dev/null || echo "0")
+    echo -e "${GREEN}Project refreshed!${NC}"
+    echo -e "  - $NEW_TASKS pending tasks in $TASK_FILE"
+    echo ""
+    echo -e "${CYAN}Run 'bjarne' to work through the new tasks${NC}"
 
     exit 0
 fi
