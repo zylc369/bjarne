@@ -138,6 +138,20 @@ Bjarne reads your notes, adds tasks to `TASKS.md`, and you're back in the loop.
 3. **REVIEW** - Runs tests, checks for issues
 4. **FIX** - Fixes any problems found
 
+## Why Not Just a Dumb Loop?
+
+Pure "keep running until done" loops can build working code, but they accumulate problems:
+
+| Issue | Dumb Loop | Bjarne |
+|-------|-----------|--------|
+| Security vulnerabilities | Undetected until prod | Caught in REVIEW |
+| DRY violations | Copy-paste spreads | Flagged and refactored |
+| Growing monoliths | Files balloon unchecked | Architecture reviewed |
+| Broken tests | Ignored or disabled | Must pass to continue |
+| Dead code | Accumulates silently | Cleaned up in FIX |
+
+The REVIEW step acts as a quality gate. Code doesn't just need to *work* — it needs to pass inspection before moving on.
+
 ## Tips
 
 - **Simple ideas** get sensible defaults (tech stack, testing, etc.)
