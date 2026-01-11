@@ -1,6 +1,8 @@
 # Bjarne
 
-Autonomous AI development loop. Give it an idea, it builds the project.
+Autonomous AI development loop. Give it an idea, come back to a finished project.
+
+**TL;DR:** Write what you want in a markdown file → run `bjarne init idea.md` → run `bjarne` → wait → done.
 
 ## How It Works
 
@@ -16,12 +18,24 @@ Bjarne reads your idea, creates a task list, then loops through each task autono
 
 - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated
 - **macOS or Linux** (Windows users: use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install))
+- [Docker](https://docs.docker.com/get-docker/) (optional, for safe mode)
 
 ## Install
 
 ```bash
 sudo curl -o /usr/local/bin/bjarne https://raw.githubusercontent.com/Dekadinious/bjarne/main/bjarne && sudo chmod +x /usr/local/bin/bjarne
 ```
+
+## Commands
+
+| Command | What it does |
+|---------|--------------|
+| `bjarne init idea.md` | Create project from idea file |
+| `bjarne init --safe idea.md` | Same, but enables Docker sandbox |
+| `bjarne` | Run the development loop |
+| `bjarne 50` | Run with 50 iterations (default: 25) |
+| `bjarne refresh notes.md` | Add tasks from feedback notes |
+| `bjarne --rebuild` | Rebuild Docker image (safe mode) |
 
 ## Usage
 
@@ -109,6 +123,31 @@ Want more iterations?
 bjarne 50
 ```
 
+### Safe Mode (recommended for unattended runs)
+
+Running Bjarne overnight? Use safe mode to prevent any chance of accidental damage to files outside your project:
+
+```bash
+bjarne init --safe idea.md   # Creates Docker config
+bjarne                        # Runs in isolated container
+```
+
+**What safe mode does:**
+- Runs Claude inside a Docker container
+- Container can ONLY see your project directory
+- Rest of your system is completely protected
+- Your Claude credentials are mounted read-only
+
+**Customize the container:**
+```bash
+vim .bjarne/Dockerfile       # Edit as needed
+bjarne --rebuild             # Rebuild with changes
+```
+
+Safe mode auto-detects your tech stack (Node.js, Python, Rust, Go, PHP) and uses the appropriate Docker image.
+
+> **Requires:** [Docker](https://docs.docker.com/get-docker/) installed
+
 ### 4. Refresh (optional)
 
 After Bjarne finishes, test your project manually. Found bugs? Want new features? Write freeform notes:
@@ -180,6 +219,7 @@ The REVIEW step acts as a quality gate. Code doesn't just need to *work* — it 
 | `TASKS.md` | Checkbox task list (main state) |
 | `specs/` | Detailed specifications |
 | `.task` | Current task state (temporary) |
+| `.bjarne/` | Docker config (safe mode only) |
 
 ## Standing on the Shoulders of Ralph
 
