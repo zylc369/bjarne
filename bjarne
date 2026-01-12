@@ -4,14 +4,25 @@
 # Commands:
 #   bjarne init [--safe] <idea.md>  - Bootstrap project from idea file
 #   bjarne refresh <notes.md>       - Add tasks from freeform notes
+#   bjarne task [opts] "desc"       - Run isolated single-task mode
 #   bjarne [n]                      - Run n iterations (default 25)
 #   bjarne --rebuild                - Force rebuild Docker image (safe mode only)
+#
+# Task mode options:
+#   --safe              - Run in Docker container
+#   -f, --file <file>   - Read task description from file
+#   --branch <name>     - Use custom branch name
+#   --no-pr             - Skip PR creation
+#   -n <num>            - Max iterations (default 25)
 #
 # Safe mode (--safe): Runs Claude in a Docker container that can only access
 # the project directory. Use for unattended runs to prevent accidental
 # damage to other files on the system.
 #
 # Loop: PLAN → EXECUTE → REVIEW → FIX
+#
+# Task mode: Isolated single-task fixes. Does NOT touch CONTEXT.md, TASKS.md.
+# Uses .bjarne/tasks/<task-id>/ for state. Auto-creates branch and PR if git/gh available.
 #
 # idea.md/notes.md are freeform - write whatever you want. Bjarne will figure it out.
 
@@ -35,11 +46,319 @@ TASK_STATE=".task"
 MAX_RETRIES=5
 RETRY_DELAY=10
 
+# Logging
+LOG_DIR=".bjarne/logs"
+LOG_FILE="$LOG_DIR/bjarne.log"
+
+# Ensure log directory exists
+mkdir -p "$LOG_DIR"
+
+# Log function
+log() {
+    local level="$1"
+    local msg="$2"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo "[$timestamp] [$level] $msg" >> "$LOG_FILE"
+}
+
+# Log with context (for failures)
+log_failure() {
+    local phase="$1"
+    local attempt="$2"
+    local exit_code="$3"
+    local output="$4"
+    local prompt_size="$5"
+    local prompt="$6"
+
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local fail_file="$LOG_DIR/failure_${timestamp//[: -]/_}.log"
+
+    {
+        echo "=== BJARNE FAILURE LOG ==="
+        echo "Timestamp: $timestamp"
+        echo "Phase: $phase"
+        echo "Attempt: $attempt/$MAX_RETRIES"
+        echo "Exit code: $exit_code"
+        echo "Prompt size: $prompt_size bytes"
+        echo "Working directory: $(pwd)"
+        echo "Safe mode: $SAFE_MODE"
+        echo ""
+        echo "=== CLAUDE OUTPUT ==="
+        echo "$output"
+        echo ""
+        echo "=== ACTUAL PROMPT SENT ==="
+        echo "$prompt"
+        echo ""
+        echo "=== CURRENT .task FILE (if exists) ==="
+        if [[ -f "$TASK_STATE" ]]; then
+            cat "$TASK_STATE"
+        else
+            echo "(no .task file)"
+        fi
+    } > "$fail_file"
+
+    log "ERROR" "Failure logged to $fail_file"
+    echo -e "${YELLOW}  Failure details saved to: $fail_file${NC}"
+}
+
 # Safe mode (Docker) settings
 BJARNE_DIR=".bjarne"
 DOCKERFILE="$BJARNE_DIR/Dockerfile"
 SAFE_MODE=false
 IMAGE_NAME=""
+
+#==============================================================================
+# PROMPTS - Defined early so both task mode and main loop can use them
+#==============================================================================
+
+read -r -d '' PLAN_PROMPT << 'PLAN_EOF' || true
+# PLAN STEP
+
+You are planning ONE task from TASKS.md.
+
+## Your Job
+1. Read CONTEXT.md for project info and commands
+2. Read TASKS.md - find the FIRST unchecked `- [ ]` task
+3. **Parse the task**: Extract ACTION and OUTCOME (format: `Action → Outcome`)
+4. Read specs/ folder for detailed specifications
+5. Search the codebase for existing patterns, utilities, components
+6. Write a plan to .task file
+
+## Write to .task file:
+```
+TASK: [exact task text from TASKS.md]
+ACTION: [what to implement]
+EXPECTED_OUTCOME: [how to verify success - from the → part]
+
+EXISTING_CODE:
+- [file/function to reuse]
+
+PATTERNS:
+- [pattern from codebase to follow]
+
+PLAN:
+1. [specific step]
+2. [specific step]
+
+FILES_TO_CREATE: [list]
+FILES_TO_MODIFY: [list]
+TEST_COMMAND: [from CONTEXT.md or detected]
+
+OUTCOME_VERIFICATION:
+- [specific check to confirm outcome, e.g., "grep for button with href=/login"]
+- [curl command, file check, or code inspection to verify]
+```
+
+## Architecture Principles
+- REUSE existing code - search first
+- EXTEND existing files when logical
+- ONE clear responsibility per file
+- Follow existing patterns in codebase
+- Match existing code style
+
+DO NOT implement. Just plan.
+PLAN_EOF
+
+read -r -d '' EXECUTE_PROMPT << 'EXEC_EOF' || true
+# EXECUTE STEP
+
+Read .task file. Follow the plan exactly.
+
+## Rules
+- Follow the PLAN steps in order
+- REUSE code listed in EXISTING_CODE
+- Follow PATTERNS for consistency
+- Match existing code style in the project
+- Clear names, no abbreviations
+- Handle errors meaningfully
+
+## Code Quality (adapt to project's tech stack)
+- Keep functions focused (single responsibility)
+- Keep files cohesive (related code together)
+- Comments explain WHY not WHAT
+
+## When Done
+Mark the task complete in TASKS.md with a short note if you learned something useful:
+- Simple completion: `- [x] Task description`
+- With note: `- [x] Task description → Note: [one-line insight]`
+
+Only add a note if it would help future tasks (e.g., "used X instead of Y", "requires Z first").
+
+Then commit: "feat: [task description]"
+EXEC_EOF
+
+read -r -d '' REVIEW_PROMPT << 'REVIEW_EOF' || true
+# REVIEW STEP
+
+Review implementation against .task plan.
+
+## 1. VERIFY OUTCOME FIRST (Most Important!)
+Read EXPECTED_OUTCOME and OUTCOME_VERIFICATION from .task file.
+Actually run the verification steps to confirm the outcome was achieved:
+- If it says "button exists with href=/login" → grep/search for it
+- If it says "API returns 200" → curl the endpoint
+- If it says "error message shows" → check the component renders it
+- If it says "file created at X" → verify file exists
+
+**If outcome NOT achieved**: This is a 🔴 BLOCKER - the task isn't done.
+**If outcome achieved**: Continue to code quality checks.
+
+## 2. Check Plan Compliance
+- Was EXISTING_CODE reused?
+- Were PATTERNS followed?
+- All PLAN steps done?
+
+## Auto-Detect Focus Areas
+Based on what was implemented, check relevant areas:
+
+**If touched auth/passwords/tokens/API keys:**
+- Input validation and sanitization
+- No hardcoded secrets
+- Secure token handling
+
+**If touched database/SQL:**
+- Prepared statements (no SQL injection)
+- Proper error handling
+
+**If touched user input/forms:**
+- Input validation
+- XSS prevention (escape output)
+
+**If touched API endpoints:**
+- Proper response format
+- Error responses
+- Authentication checks
+
+**If touched async/state:**
+- Race condition checks
+- Error state handling
+
+**If touched UI:**
+- Matches design system (if specs/DESIGN_SYSTEM.md exists)
+- Accessibility basics
+
+## Run Checks
+Use TEST_COMMAND from .task file (or detect from CONTEXT.md)
+
+## Testing Approach
+Check what testing infrastructure exists in the project:
+- If tests exist → run them, ensure new code is covered
+- Testing expectations depend on context (see mode-specific guidance if present)
+
+## Classify Issues by Type AND Severity
+
+### Issue Types:
+- 🔧 ENVIRONMENT: Missing tools, dependencies, wrong container setup, config needed
+- 💻 CODE: Bugs, logic errors, security issues, missing error handling
+
+### Severity:
+- 🔴 BLOCKER: Security vulnerabilities, data loss risk, crashes
+- 🟡 ISSUE: Bugs, logic errors, missing error handling
+- 🟢 SUGGESTION: Style improvements, minor optimizations
+
+## CRITICAL: Environment Issues Are SOLVABLE, Not Blockers
+If you encounter an environment issue (missing tool, dependency, wrong setup):
+- This is NOT a blocker - it's a SOLVABLE ISSUE
+- Examples: "Chrome not installed", "missing npm package", "Docker needs config"
+- Mark as: 🔧 ENVIRONMENT ISSUE (not BLOCKER)
+- Include REMEDIATION: what needs to be installed/configured to fix it
+
+## Check Against Pending Tasks
+Before flagging unused code, check TASKS.md:
+- Will a pending task use it? → Not an issue, note "scaffolding for task X"
+- No pending task needs it? → Flag as ISSUE: remove dead code
+
+Don't suppress warnings for scaffolding. Don't keep actual dead code.
+
+## Append to .task:
+```
+REVIEW_RESULT:
+OUTCOME_ACHIEVED: yes/no
+OUTCOME_EVIDENCE: [what you checked and found]
+BUILD_PASSED: yes/no
+TESTS_PASSED: yes/no
+
+ENVIRONMENT_ISSUES:
+- [type] [description] → REMEDIATION: [how to fix]
+
+BLOCKERS:
+- [if any - includes outcome not achieved]
+
+ISSUES:
+- [if any]
+
+SUGGESTIONS:
+- [if any, brief]
+```
+
+If all good, write:
+```
+REVIEW_RESULT:
+OUTCOME_ACHIEVED: yes
+OUTCOME_EVIDENCE: [brief proof]
+BUILD_PASSED: yes
+TESTS_PASSED: yes
+ISSUES: none
+```
+REVIEW_EOF
+
+read -r -d '' FIX_PROMPT << 'FIX_EOF' || true
+# FIX STEP
+
+Read REVIEW_RESULT in .task file. Fix issues by priority.
+
+## Priority Order
+1. ❌ OUTCOME_ACHIEVED: no - The task isn't done! Fix implementation first.
+2. 🔧 ENVIRONMENT_ISSUES - CREATE REMEDIATION TASKS
+3. 🔴 BLOCKERS - code issues that must be fixed
+4. 🟡 ISSUES - fix if straightforward
+5. 🟢 SUGGESTIONS - fix only if trivial
+
+## If OUTCOME_ACHIEVED is "no"
+The implementation doesn't do what the task required. You must:
+1. Read EXPECTED_OUTCOME and OUTCOME_EVIDENCE from .task
+2. Figure out WHY the outcome wasn't achieved
+3. Fix the implementation until the outcome IS achieved
+4. Re-verify the outcome yourself before proceeding
+This is NOT optional - a task without its outcome is not done.
+
+## Handling ENVIRONMENT_ISSUES (Critical!)
+Environment issues are SOLVABLE. You must:
+1. Read the REMEDIATION from .task file
+2. ADD A NEW TASK to TASKS.md to fix the environment issue
+   - Insert it BEFORE the current task (so it runs next iteration)
+   - Format: `- [ ] Setup: [remediation action]`
+   - Examples:
+     - `- [ ] Setup: Install Chromium and dependencies in Dockerfile.dev`
+     - `- [ ] Setup: Add missing npm package X to dependencies`
+     - `- [ ] Setup: Configure Docker to support tool Y`
+3. Unmark current task back to `- [ ]` (it will retry after environment is fixed)
+4. Delete .task file
+5. DO NOT mark as blocked - the environment task will fix it
+
+## Your Job for Code Issues
+1. Fix BLOCKERS (mandatory)
+2. Fix ISSUES (should fix)
+3. Consider SUGGESTIONS (nice to have)
+4. Re-run TEST_COMMAND to confirm
+5. Commit fixes: "fix: [description]"
+
+## After Fixing
+If all fixed + tests pass:
+- Delete .task file
+- Ensure task is marked `- [x]` in TASKS.md (with note if useful)
+
+If environment issue found:
+- Add remediation task to TASKS.md (see above)
+- Unmark current task
+- Delete .task file
+- CONTINUE (not blocked!)
+
+If TRUE code blocker (rare - only security/data issues with no fix):
+- Unmark task in TASKS.md back to `- [ ]`
+- Add blocker note: `- [ ] Task description ⚠️ Blocked: [reason]`
+- Keep .task file for context
+FIX_EOF
 
 #==============================================================================
 # SAFE MODE FUNCTIONS
@@ -146,23 +465,77 @@ RUN npm install -g @anthropic-ai/claude-code
 # Install common dev tools
 RUN apt-get update && apt-get install -y git curl && rm -rf /var/lib/apt/lists/*
 
+# Create non-root user (Claude Code refuses --dangerously-skip-permissions as root)
+# Make home directory world-writable so any UID can write (container is sandboxed anyway)
+RUN useradd -m -s /bin/bash bjarne && \\
+    mkdir -p /workspace && chown bjarne:bjarne /workspace && \\
+    mkdir -p /home/bjarne/.claude && \\
+    chmod -R 777 /home/bjarne
+USER bjarne
+
 WORKDIR /workspace
 EOF
 
     echo -e "  - Generated $DOCKERFILE (base: $base_image)"
 }
 
+#==============================================================================
+# GIT/GH DETECTION FUNCTIONS (for task command)
+#==============================================================================
+
+# Detect if git is available and we're in a repo
+detect_git() {
+    if command -v git &>/dev/null && git rev-parse --git-dir &>/dev/null 2>&1; then
+        echo "1"
+    else
+        echo "0"
+    fi
+}
+
+# Detect if gh CLI is available and authenticated
+detect_gh() {
+    if command -v gh &>/dev/null && gh auth status &>/dev/null 2>&1; then
+        echo "1"
+    else
+        echo "0"
+    fi
+}
+
+# Generate task ID from description
+generate_task_id() {
+    local description="$1"
+    local timestamp=$(date +%s)
+    local slug=$(echo "$description" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | cut -c1-30)
+    echo "${timestamp}-${slug}"
+}
+
 # Run claude with retry logic (safe mode aware)
+# Usage: run_claude "prompt" "PHASE_NAME"
 run_claude() {
     local prompt="$1"
+    local phase="${2:-UNKNOWN}"
     local attempt=1
     local exit_code
+    local output
+    local prompt_size=${#prompt}
+
+    log "INFO" "Starting $phase phase (prompt: $prompt_size bytes)"
 
     while [[ $attempt -le $MAX_RETRIES ]]; do
         if [[ "$SAFE_MODE" == true ]]; then
-            # Run in Docker container
+            # Run in Docker container (as 'bjarne' user, not root)
             local docker_args="-v $(pwd):/workspace"
-            docker_args+=" -v $HOME/.claude/.credentials.json:/root/.claude/.credentials.json:ro"
+            docker_args+=" -v $HOME/.claude/.credentials.json:/home/bjarne/.claude/.credentials.json:ro"
+
+            # Add gh CLI config if available (for PR creation in task mode)
+            if [[ -d "$HOME/.config/gh" ]]; then
+                docker_args+=" -v $HOME/.config/gh:/home/bjarne/.config/gh:ro"
+            fi
+
+            # Add gitconfig if available (for commits)
+            if [[ -f "$HOME/.gitconfig" ]]; then
+                docker_args+=" -v $HOME/.gitconfig:/home/bjarne/.gitconfig:ro"
+            fi
 
             # Add dependency volume if applicable
             local dep_volume=$(get_dep_volume "$PROJECT_NAME")
@@ -170,19 +543,36 @@ run_claude() {
                 docker_args+=" -v $dep_volume"
             fi
 
-            docker run --rm $docker_args -w /workspace "$IMAGE_NAME" \
-                claude -p --dangerously-skip-permissions "$prompt"
+            # Capture both stdout and stderr
+            # Run as host user's UID/GID so mounted files have correct permissions
+            output=$(docker run --rm --user "$(id -u):$(id -g)" -e HOME=/home/bjarne \
+                $docker_args -w /workspace "$IMAGE_NAME" \
+                claude -p --dangerously-skip-permissions "$prompt" 2>&1)
+            exit_code=$?
         else
-            # Run on host (existing behavior)
-            claude -p --dangerously-skip-permissions "$prompt"
+            # Run on host (existing behavior), capture output
+            output=$(claude -p --dangerously-skip-permissions "$prompt" 2>&1)
+            exit_code=$?
         fi
-        exit_code=$?
 
         if [[ $exit_code -eq 0 ]]; then
+            # Output the result (so it still shows on screen)
+            echo "$output"
+            log "INFO" "$phase phase completed successfully"
             return 0
         fi
 
-        echo -e "${YELLOW}  Claude failed (attempt $attempt/$MAX_RETRIES, exit code $exit_code)${NC}"
+        # Check for the specific streaming error
+        if echo "$output" | grep -q "only prompt commands are supported in streaming mode"; then
+            log "ERROR" "$phase: Got 'streaming mode' error (attempt $attempt)"
+            echo -e "${YELLOW}  Claude failed (attempt $attempt/$MAX_RETRIES, exit code $exit_code)${NC}"
+            echo -e "${RED}  Error: 'only prompt commands are supported in streaming mode'${NC}"
+        else
+            echo -e "${YELLOW}  Claude failed (attempt $attempt/$MAX_RETRIES, exit code $exit_code)${NC}"
+        fi
+
+        # Log failure details including the actual prompt
+        log_failure "$phase" "$attempt" "$exit_code" "$output" "$prompt_size" "$prompt"
 
         if [[ $attempt -lt $MAX_RETRIES ]]; then
             echo -e "${YELLOW}  Retrying in ${RETRY_DELAY}s...${NC}"
@@ -193,6 +583,7 @@ run_claude() {
     done
 
     echo -e "${RED}  All $MAX_RETRIES attempts failed${NC}"
+    log "ERROR" "$phase phase failed after $MAX_RETRIES attempts"
     return 1
 }
 
@@ -390,7 +781,7 @@ $EXISTING_CODE_INFO
 $CLAUDE_MD
 ---
 
-$INIT_PROMPT"
+$INIT_PROMPT" "INIT"
 
     # Verify files were created
     if [[ -f "$CONTEXT_FILE" ]] && [[ -f "$TASK_FILE" ]]; then
@@ -561,7 +952,7 @@ $TASKS_CONTENT
 $CLAUDE_MD
 ---
 
-$REFRESH_PROMPT"
+$REFRESH_PROMPT" "REFRESH"
 
     # Show result
     NEW_TASKS=$(grep -c '^\s*- \[ \]' "$TASK_FILE" 2>/dev/null || echo "0")
@@ -574,261 +965,445 @@ $REFRESH_PROMPT"
 fi
 
 #==============================================================================
+# TASK COMMAND - Isolated single-task mode
+#==============================================================================
+if [[ "$1" == "task" ]]; then
+    shift  # Remove "task" from args
+
+    # Parse task command arguments
+    TASK_SAFE_MODE=false
+    TASK_DESCRIPTION=""
+    TASK_FILE_INPUT=""
+    TASK_BRANCH_OVERRIDE=""
+    TASK_NO_PR=false
+    TASK_MAX_ITERATIONS=25
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --safe)
+                TASK_SAFE_MODE=true
+                shift
+                ;;
+            -f|--file)
+                TASK_FILE_INPUT="$2"
+                shift 2
+                ;;
+            --branch)
+                TASK_BRANCH_OVERRIDE="$2"
+                shift 2
+                ;;
+            --no-pr)
+                TASK_NO_PR=true
+                shift
+                ;;
+            -n)
+                TASK_MAX_ITERATIONS="$2"
+                shift 2
+                ;;
+            *)
+                # Assume it's the task description
+                TASK_DESCRIPTION="$1"
+                shift
+                ;;
+        esac
+    done
+
+    # Get description from file if -f was used
+    if [[ -n "$TASK_FILE_INPUT" ]]; then
+        if [[ ! -f "$TASK_FILE_INPUT" ]]; then
+            echo -e "${RED}Error: Task file '$TASK_FILE_INPUT' not found${NC}"
+            exit 1
+        fi
+        TASK_DESCRIPTION=$(cat "$TASK_FILE_INPUT")
+    fi
+
+    if [[ -z "$TASK_DESCRIPTION" ]]; then
+        echo -e "${RED}Usage: bjarne task [--safe] [-f file.md] [--branch name] [--no-pr] [-n iterations] \"task description\"${NC}"
+        echo ""
+        echo "Examples:"
+        echo "  bjarne task \"Fix the login button not responding\""
+        echo "  bjarne task -f bugfix.md"
+        echo "  bjarne task --safe \"Add payment integration\""
+        echo "  bjarne task --branch feature/oauth \"Add OAuth support\""
+        exit 1
+    fi
+
+    # Detect git and gh availability
+    HAS_GIT=$(detect_git)
+    HAS_GH=$(detect_gh)
+
+    # Generate task ID and paths
+    TASK_ID=$(generate_task_id "$TASK_DESCRIPTION")
+    TASK_DIR=".bjarne/tasks/$TASK_ID"
+    TASK_LOG_DIR="$TASK_DIR/logs"
+    TASK_LOG_FILE="$TASK_LOG_DIR/task.log"
+    TASK_SUBTASKS="$TASK_DIR/SUBTASKS.md"
+    TASK_STATE_FILE="$TASK_DIR/.task"
+    TASK_SUMMARY_FILE="$TASK_DIR/summary.md"
+    TASK_ORIGINAL_FILE="$TASK_DIR/TASK.md"
+
+    # Create task directory structure
+    mkdir -p "$TASK_LOG_DIR"
+    echo "$TASK_DESCRIPTION" > "$TASK_ORIGINAL_FILE"
+
+    echo -e "${CYAN}Bjarne task mode${NC}"
+    echo -e "  Task ID: $TASK_ID"
+    echo -e "  Task dir: $TASK_DIR"
+    echo -e "  Git available: $([ \"$HAS_GIT\" == \"1\" ] && echo \"yes\" || echo \"no\")"
+    echo -e "  GitHub CLI: $([ \"$HAS_GH\" == \"1\" ] && echo \"yes\" || echo \"no\")"
+
+    # Task-specific log function
+    task_log() {
+        local level="$1"
+        local msg="$2"
+        local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+        echo "[$timestamp] [$level] $msg" >> "$TASK_LOG_FILE"
+    }
+
+    task_log "INFO" "=== Task session started ==="
+    task_log "INFO" "Task: $TASK_DESCRIPTION"
+    task_log "INFO" "Task ID: $TASK_ID"
+
+    # Save original branch if git available
+    ORIGINAL_BRANCH=""
+    if [[ "$HAS_GIT" == "1" ]]; then
+        ORIGINAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+        task_log "INFO" "Original branch: $ORIGINAL_BRANCH"
+
+        # Create feature branch
+        BRANCH_NAME="${TASK_BRANCH_OVERRIDE:-task/$TASK_ID}"
+        echo -e "  Creating branch: $BRANCH_NAME"
+
+        if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
+            echo -e "${YELLOW}  Branch '$BRANCH_NAME' already exists, using it${NC}"
+            git checkout "$BRANCH_NAME"
+        else
+            git checkout -b "$BRANCH_NAME"
+        fi
+        task_log "INFO" "Working branch: $BRANCH_NAME"
+    fi
+
+    # Handle safe mode for task
+    if [[ "$TASK_SAFE_MODE" == true ]]; then
+        if [[ ! -f "$DOCKERFILE" ]]; then
+            echo -e "${CYAN}Generating Docker configuration for safe mode...${NC}"
+            generate_dockerfile
+        fi
+        SAFE_MODE=true
+        PROJECT_NAME=$(basename "$(pwd)" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g')
+        IMAGE_NAME="bjarne-${PROJECT_NAME}"
+        build_docker_image "false"
+    fi
+
+    echo ""
+
+    # Read project context if available (read-only)
+    PROJECT_CONTEXT=""
+    if [[ -f "$CONTEXT_FILE" ]]; then
+        PROJECT_CONTEXT="## PROJECT CONTEXT (from CONTEXT.md):
+$(cat "$CONTEXT_FILE")
+
+"
+    fi
+
+    # Read specs if available (read-only)
+    SPECS_CONTENT=""
+    if [[ -d "$SPECS_DIR" ]]; then
+        SPECS_FILES=$(find "$SPECS_DIR" -name "*.md" 2>/dev/null)
+        if [[ -n "$SPECS_FILES" ]]; then
+            SPECS_CONTENT="## SPECIFICATIONS (from specs/):
+$(cat $SPECS_DIR/*.md 2>/dev/null)
+
+"
+        fi
+    fi
+
+    # Read CLAUDE.md if exists
+    CLAUDE_MD_CONTENT=""
+    if [[ -f "CLAUDE.md" ]]; then
+        CLAUDE_MD_CONTENT="## Project Rules (from CLAUDE.md):
+$(cat CLAUDE.md)
+
+"
+    fi
+
+    #--------------------------------------------------------------------------
+    # DECOMPOSE PHASE - Break task into subtasks
+    #--------------------------------------------------------------------------
+    echo -e "${BLUE}[DECOMPOSE]${NC} Breaking down task..."
+
+    read -r -d '' DECOMPOSE_PROMPT << 'DECOMPOSE_EOF' || true
+# DECOMPOSE TASK
+
+You are breaking down a task for an autonomous coding agent.
+
+CRITICAL: You are working on an EXISTING project. Do NOT delete any source files,
+configuration files, or project files. Only modify files directly related to this task.
+The project's existing files are NOT bjarne artifacts - do NOT remove them.
+
+## Instructions
+1. Explore the codebase to understand the relevant code
+2. Break this into discrete subtasks (or keep as one if simple enough)
+3. Each subtask must have: Action → Outcome (verifiable)
+4. Output ONLY a markdown checklist to SUBTASKS.md file
+
+## Subtask Format
+Each line must be: `- [ ] Action → Outcome`
+- Action: What to implement (specific, atomic)
+- Outcome: How to verify it worked (must be machine-checkable)
+
+## Examples
+- [ ] Find login button component → Located in src/components/
+- [ ] Add onClick handler to login button → Button calls handleLogin function when clicked
+- [ ] Test login flow → Clicking login button redirects to /dashboard
+
+## Output
+Write ONLY the subtask checklist to the SUBTASKS.md file. Nothing else.
+Keep subtasks focused, atomic, and verifiable.
+DECOMPOSE_EOF
+
+    DECOMPOSE_FULL_PROMPT="# TASK TO DECOMPOSE:
+$TASK_DESCRIPTION
+
+---
+
+$PROJECT_CONTEXT$SPECS_CONTENT$CLAUDE_MD_CONTENT---
+
+Write subtasks to: $TASK_SUBTASKS
+
+$DECOMPOSE_PROMPT"
+
+    if ! run_claude "$DECOMPOSE_FULL_PROMPT" "DECOMPOSE"; then
+        echo -e "${RED}Decompose phase failed - aborting${NC}"
+        if [[ "$HAS_GIT" == "1" ]] && [[ -n "$ORIGINAL_BRANCH" ]]; then
+            git checkout "$ORIGINAL_BRANCH" 2>/dev/null
+        fi
+        exit 1
+    fi
+
+    # Verify SUBTASKS.md was created
+    if [[ ! -f "$TASK_SUBTASKS" ]]; then
+        echo -e "${RED}Error: SUBTASKS.md not created${NC}"
+        if [[ "$HAS_GIT" == "1" ]] && [[ -n "$ORIGINAL_BRANCH" ]]; then
+            git checkout "$ORIGINAL_BRANCH" 2>/dev/null
+        fi
+        exit 1
+    fi
+
+    SUBTASK_COUNT=$(grep -c '^\s*- \[ \]' "$TASK_SUBTASKS" 2>/dev/null || echo "0")
+    echo -e "${GREEN}Created $SUBTASK_COUNT subtasks${NC}"
+    echo ""
+
+    #--------------------------------------------------------------------------
+    # TASK LOOP - Run until all subtasks complete
+    # Uses main prompts with task-mode context injection
+    #--------------------------------------------------------------------------
+
+    # Build task mode context header (injected before each prompt)
+    TASK_MODE_HEADER="## TASK MODE - Isolated Single Fix
+
+**File Mappings (read these instead of defaults):**
+- TASKS.md → $TASK_SUBTASKS
+- .task → $TASK_STATE_FILE
+
+**Task Mode Rules:**
+- You are fixing ONE specific thing in an EXISTING project
+- Do NOT delete any project source files - only modify what's needed for this task
+- Do NOT create new test infrastructure if none exists
+- If tests exist and this change naturally fits, add/update tests
+- If no tests exist, outcome verification (grep, curl, file check) is sufficient
+
+"
+
+    echo -e "${CYAN}Starting task loop - max $TASK_MAX_ITERATIONS iterations${NC}"
+    echo ""
+
+    for i in $(seq 1 $TASK_MAX_ITERATIONS); do
+        # Check for remaining subtasks
+        if ! grep -q '^\s*- \[ \]' "$TASK_SUBTASKS"; then
+            echo -e "${GREEN}All subtasks complete!${NC}"
+            break
+        fi
+
+        REMAINING=$(grep -c '^\s*- \[ \]' "$TASK_SUBTASKS") || REMAINING=0
+        echo -e "${YELLOW}=== Task iteration $i/$TASK_MAX_ITERATIONS ($REMAINING subtasks remaining) ===${NC}"
+
+        # Build context for this iteration (task mode header + project context)
+        ITER_CONTEXT="$TASK_MODE_HEADER$PROJECT_CONTEXT$SPECS_CONTENT$CLAUDE_MD_CONTENT"
+
+        # PLAN (uses main PLAN_PROMPT with task context)
+        echo -e "${BLUE}[1/4 PLAN]${NC} Analyzing subtask..."
+        if ! run_claude "$ITER_CONTEXT
+
+$PLAN_PROMPT" "TASK_PLAN"; then
+            echo -e "${RED}Plan phase failed - aborting${NC}"
+            break
+        fi
+
+        if [[ ! -f "$TASK_STATE_FILE" ]]; then
+            echo -e "${RED}Plan failed - no .task file created${NC}"
+            continue
+        fi
+
+        # EXECUTE (uses main EXECUTE_PROMPT with task context)
+        echo -e "${BLUE}[2/4 EXECUTE]${NC} Implementing..."
+        if ! run_claude "$ITER_CONTEXT
+
+$EXECUTE_PROMPT" "TASK_EXECUTE"; then
+            echo -e "${RED}Execute phase failed - aborting${NC}"
+            break
+        fi
+
+        # REVIEW (uses main REVIEW_PROMPT with task context)
+        echo -e "${BLUE}[3/4 REVIEW]${NC} Reviewing..."
+        if ! run_claude "$ITER_CONTEXT
+
+$REVIEW_PROMPT" "TASK_REVIEW"; then
+            echo -e "${RED}Review phase failed - aborting${NC}"
+            break
+        fi
+
+        # FIX (uses main FIX_PROMPT with task context)
+        echo -e "${BLUE}[4/4 FIX]${NC} Fixing..."
+        if ! run_claude "$ITER_CONTEXT
+
+$FIX_PROMPT" "TASK_FIX"; then
+            echo -e "${RED}Fix phase failed - aborting${NC}"
+            break
+        fi
+
+        sleep 2
+    done
+
+    #--------------------------------------------------------------------------
+    # FINALIZE - Generate summary and create PR
+    #--------------------------------------------------------------------------
+    echo ""
+    echo -e "${CYAN}Finalizing task...${NC}"
+
+    # Count completed subtasks (grep -c returns 0 on no match but exits non-zero, so we need || true)
+    COMPLETED_COUNT=$(grep -c '^\s*- \[x\]' "$TASK_SUBTASKS" 2>/dev/null) || COMPLETED_COUNT=0
+    REMAINING_COUNT=$(grep -c '^\s*- \[ \]' "$TASK_SUBTASKS" 2>/dev/null) || REMAINING_COUNT=0
+
+    # Generate summary
+    SUMMARY="# Task Summary
+
+## Original Task
+$TASK_DESCRIPTION
+
+## Results
+- Completed subtasks: $COMPLETED_COUNT
+- Remaining subtasks: $REMAINING_COUNT
+"
+
+    if [[ "$HAS_GIT" == "1" ]]; then
+        # Get git diff stats
+        DIFF_STAT=$(git diff "$ORIGINAL_BRANCH"..HEAD --stat 2>/dev/null || echo "No changes")
+        COMMIT_LOG=$(git log "$ORIGINAL_BRANCH"..HEAD --oneline 2>/dev/null || echo "No commits")
+
+        SUMMARY+="
+## Changes
+\`\`\`
+$DIFF_STAT
+\`\`\`
+
+## Commits
+\`\`\`
+$COMMIT_LOG
+\`\`\`
+"
+    fi
+
+    SUMMARY+="
+## Subtasks
+$(cat "$TASK_SUBTASKS")
+"
+
+    echo "$SUMMARY" > "$TASK_SUMMARY_FILE"
+
+    # Output summary
+    echo ""
+    echo -e "${GREEN}========================================${NC}"
+    echo -e "${GREEN}TASK COMPLETE${NC}"
+    echo -e "${GREEN}========================================${NC}"
+    echo ""
+    echo -e "Completed: $COMPLETED_COUNT subtasks"
+    echo -e "Remaining: $REMAINING_COUNT subtasks"
+
+    if [[ "$HAS_GIT" == "1" ]]; then
+        echo -e "Branch: $BRANCH_NAME"
+
+        # Check if there are actual changes to push
+        COMMIT_COUNT=$(git rev-list "$ORIGINAL_BRANCH"..HEAD --count 2>/dev/null || echo "0")
+
+        if [[ "$COMMIT_COUNT" -gt 0 ]]; then
+            # Push branch
+            echo -e "\n${CYAN}Pushing branch to remote...${NC}"
+            if git push -u origin "$BRANCH_NAME" 2>/dev/null; then
+                echo -e "${GREEN}Branch pushed successfully${NC}"
+
+                # Create PR if gh available and not --no-pr
+                if [[ "$HAS_GH" == "1" ]] && [[ "$TASK_NO_PR" != true ]]; then
+                    echo -e "\n${CYAN}Creating pull request...${NC}"
+
+                    PR_TITLE="[Bjarne Task] $(echo "$TASK_DESCRIPTION" | head -c 60)"
+                    PR_BODY="## Summary
+$TASK_DESCRIPTION
+
+## Changes
+- Completed $COMPLETED_COUNT subtask(s)
+
+## Subtasks
+$(cat "$TASK_SUBTASKS")
+
+---
+*Generated by bjarne task mode*"
+
+                    if PR_URL=$(gh pr create --title "$PR_TITLE" --body "$PR_BODY" 2>/dev/null); then
+                        echo -e "${GREEN}Pull request created: $PR_URL${NC}"
+                    else
+                        echo -e "${YELLOW}Could not create PR (may already exist or no remote)${NC}"
+                        echo -e "Create manually: gh pr create --title \"$PR_TITLE\""
+                    fi
+                elif [[ "$TASK_NO_PR" == true ]]; then
+                    echo -e "\n${YELLOW}Skipping PR creation (--no-pr flag)${NC}"
+                else
+                    echo -e "\n${YELLOW}GitHub CLI not available - create PR manually:${NC}"
+                    echo -e "  gh pr create --title \"[Bjarne Task] $TASK_DESCRIPTION\""
+                fi
+            else
+                echo -e "${YELLOW}Could not push branch (no remote or access denied)${NC}"
+            fi
+        else
+            echo -e "${YELLOW}No commits made - nothing to push${NC}"
+        fi
+
+        # Return to original branch
+        echo -e "\n${CYAN}Returning to original branch: $ORIGINAL_BRANCH${NC}"
+        git checkout "$ORIGINAL_BRANCH" 2>/dev/null
+    else
+        echo -e "\n${YELLOW}Git not available - changes made to working directory only${NC}"
+    fi
+
+    # Cleanup task state directory
+    echo -e "\n${CYAN}Cleaning up task state...${NC}"
+    rm -rf "$TASK_DIR"
+    echo -e "${GREEN}Task state cleaned up${NC}"
+
+    # Final summary output
+    echo ""
+    echo -e "${GREEN}Task Summary:${NC}"
+    echo "---"
+    echo "$SUMMARY"
+    echo "---"
+    exit 0
+fi
+
+#==============================================================================
 # MAIN LOOP - PLAN → EXECUTE → REVIEW → FIX
 #==============================================================================
 
 MAX_ITERATIONS=${1:-25}
-
-# Prompts
-read -r -d '' PLAN_PROMPT << 'PLAN_EOF' || true
-# PLAN STEP
-
-You are planning ONE task from TASKS.md.
-
-## Your Job
-1. Read CONTEXT.md for project info and commands
-2. Read TASKS.md - find the FIRST unchecked `- [ ]` task
-3. **Parse the task**: Extract ACTION and OUTCOME (format: `Action → Outcome`)
-4. Read specs/ folder for detailed specifications
-5. Search the codebase for existing patterns, utilities, components
-6. Write a plan to .task file
-
-## Write to .task file:
-```
-TASK: [exact task text from TASKS.md]
-ACTION: [what to implement]
-EXPECTED_OUTCOME: [how to verify success - from the → part]
-
-EXISTING_CODE:
-- [file/function to reuse]
-
-PATTERNS:
-- [pattern from codebase to follow]
-
-PLAN:
-1. [specific step]
-2. [specific step]
-
-FILES_TO_CREATE: [list]
-FILES_TO_MODIFY: [list]
-TEST_COMMAND: [from CONTEXT.md or detected]
-
-OUTCOME_VERIFICATION:
-- [specific check to confirm outcome, e.g., "grep for button with href=/login"]
-- [curl command, file check, or code inspection to verify]
-```
-
-## Architecture Principles
-- REUSE existing code - search first
-- EXTEND existing files when logical
-- ONE clear responsibility per file
-- Follow existing patterns in codebase
-- Match existing code style
-
-DO NOT implement. Just plan.
-PLAN_EOF
-
-read -r -d '' EXECUTE_PROMPT << 'EXEC_EOF' || true
-# EXECUTE STEP
-
-Read .task file. Follow the plan exactly.
-
-## Rules
-- Follow the PLAN steps in order
-- REUSE code listed in EXISTING_CODE
-- Follow PATTERNS for consistency
-- Match existing code style in the project
-- Clear names, no abbreviations
-- Handle errors meaningfully
-
-## Code Quality (adapt to project's tech stack)
-- Keep functions focused (single responsibility)
-- Keep files cohesive (related code together)
-- Comments explain WHY not WHAT
-
-## When Done
-Mark the task complete in TASKS.md with a short note if you learned something useful:
-- Simple completion: `- [x] Task description`
-- With note: `- [x] Task description → Note: [one-line insight]`
-
-Only add a note if it would help future tasks (e.g., "used X instead of Y", "requires Z first").
-
-Then commit: "feat: [task description]"
-EXEC_EOF
-
-read -r -d '' REVIEW_PROMPT << 'REVIEW_EOF' || true
-# REVIEW STEP
-
-Review implementation against .task plan.
-
-## 1. VERIFY OUTCOME FIRST (Most Important!)
-Read EXPECTED_OUTCOME and OUTCOME_VERIFICATION from .task file.
-Actually run the verification steps to confirm the outcome was achieved:
-- If it says "button exists with href=/login" → grep/search for it
-- If it says "API returns 200" → curl the endpoint
-- If it says "error message shows" → check the component renders it
-- If it says "file created at X" → verify file exists
-
-**If outcome NOT achieved**: This is a 🔴 BLOCKER - the task isn't done.
-**If outcome achieved**: Continue to code quality checks.
-
-## 2. Check Plan Compliance
-- Was EXISTING_CODE reused?
-- Were PATTERNS followed?
-- All PLAN steps done?
-
-## Auto-Detect Focus Areas
-Based on what was implemented, check relevant areas:
-
-**If touched auth/passwords/tokens/API keys:**
-- Input validation and sanitization
-- No hardcoded secrets
-- Secure token handling
-
-**If touched database/SQL:**
-- Prepared statements (no SQL injection)
-- Proper error handling
-
-**If touched user input/forms:**
-- Input validation
-- XSS prevention (escape output)
-
-**If touched API endpoints:**
-- Proper response format
-- Error responses
-- Authentication checks
-
-**If touched async/state:**
-- Race condition checks
-- Error state handling
-
-**If touched UI:**
-- Matches design system (if specs/DESIGN_SYSTEM.md exists)
-- Accessibility basics
-
-## Run Checks
-Use TEST_COMMAND from .task file (or detect from CONTEXT.md)
-
-## Testing is Critical for Feedback Loop
-- If no tests exist yet, flag as 🟡 ISSUE: "No tests - add test for this feature"
-- If tests exist but don't cover new code, flag as 🟡 ISSUE: "Add test coverage"
-- Tests let you VERIFY the implementation works - without them you're blind
-- A feature without tests is not truly complete
-
-## Classify Issues by Type AND Severity
-
-### Issue Types:
-- 🔧 ENVIRONMENT: Missing tools, dependencies, wrong container setup, config needed
-- 💻 CODE: Bugs, logic errors, security issues, missing error handling
-
-### Severity:
-- 🔴 BLOCKER: Security vulnerabilities, data loss risk, crashes
-- 🟡 ISSUE: Bugs, logic errors, missing error handling
-- 🟢 SUGGESTION: Style improvements, minor optimizations
-
-## CRITICAL: Environment Issues Are SOLVABLE, Not Blockers
-If you encounter an environment issue (missing tool, dependency, wrong setup):
-- This is NOT a blocker - it's a SOLVABLE ISSUE
-- Examples: "Chrome not installed", "missing npm package", "Docker needs config"
-- Mark as: 🔧 ENVIRONMENT ISSUE (not BLOCKER)
-- Include REMEDIATION: what needs to be installed/configured to fix it
-
-## Check Against Pending Tasks
-Before flagging unused code, check TASKS.md:
-- Will a pending task use it? → Not an issue, note "scaffolding for task X"
-- No pending task needs it? → Flag as ISSUE: remove dead code
-
-Don't suppress warnings for scaffolding. Don't keep actual dead code.
-
-## Append to .task:
-```
-REVIEW_RESULT:
-OUTCOME_ACHIEVED: yes/no
-OUTCOME_EVIDENCE: [what you checked and found]
-BUILD_PASSED: yes/no
-TESTS_PASSED: yes/no
-
-ENVIRONMENT_ISSUES:
-- [type] [description] → REMEDIATION: [how to fix]
-
-BLOCKERS:
-- [if any - includes outcome not achieved]
-
-ISSUES:
-- [if any]
-
-SUGGESTIONS:
-- [if any, brief]
-```
-
-If all good, write:
-```
-REVIEW_RESULT:
-OUTCOME_ACHIEVED: yes
-OUTCOME_EVIDENCE: [brief proof]
-BUILD_PASSED: yes
-TESTS_PASSED: yes
-ISSUES: none
-```
-REVIEW_EOF
-
-read -r -d '' FIX_PROMPT << 'FIX_EOF' || true
-# FIX STEP
-
-Read REVIEW_RESULT in .task file. Fix issues by priority.
-
-## Priority Order
-1. ❌ OUTCOME_ACHIEVED: no - The task isn't done! Fix implementation first.
-2. 🔧 ENVIRONMENT_ISSUES - CREATE REMEDIATION TASKS
-3. 🔴 BLOCKERS - code issues that must be fixed
-4. 🟡 ISSUES - fix if straightforward
-5. 🟢 SUGGESTIONS - fix only if trivial
-
-## If OUTCOME_ACHIEVED is "no"
-The implementation doesn't do what the task required. You must:
-1. Read EXPECTED_OUTCOME and OUTCOME_EVIDENCE from .task
-2. Figure out WHY the outcome wasn't achieved
-3. Fix the implementation until the outcome IS achieved
-4. Re-verify the outcome yourself before proceeding
-This is NOT optional - a task without its outcome is not done.
-
-## Handling ENVIRONMENT_ISSUES (Critical!)
-Environment issues are SOLVABLE. You must:
-1. Read the REMEDIATION from .task file
-2. ADD A NEW TASK to TASKS.md to fix the environment issue
-   - Insert it BEFORE the current task (so it runs next iteration)
-   - Format: `- [ ] Setup: [remediation action]`
-   - Examples:
-     - `- [ ] Setup: Install Chromium and dependencies in Dockerfile.dev`
-     - `- [ ] Setup: Add missing npm package X to dependencies`
-     - `- [ ] Setup: Configure Docker to support tool Y`
-3. Unmark current task back to `- [ ]` (it will retry after environment is fixed)
-4. Delete .task file
-5. DO NOT mark as blocked - the environment task will fix it
-
-## Your Job for Code Issues
-1. Fix BLOCKERS (mandatory)
-2. Fix ISSUES (should fix)
-3. Consider SUGGESTIONS (nice to have)
-4. Re-run TEST_COMMAND to confirm
-5. Commit fixes: "fix: [description]"
-
-## After Fixing
-If all fixed + tests pass:
-- Delete .task file
-- Ensure task is marked `- [x]` in TASKS.md (with note if useful)
-
-If environment issue found:
-- Add remediation task to TASKS.md (see above)
-- Unmark current task
-- Delete .task file
-- CONTINUE (not blocked!)
-
-If TRUE code blocker (rare - only security/data issues with no fix):
-- Unmark task in TASKS.md back to `- [ ]`
-- Add blocker note: `- [ ] Task description ⚠️ Blocked: [reason]`
-- Keep .task file for context
-FIX_EOF
 
 # Check required files
 if [[ ! -f "$TASK_FILE" ]]; then
@@ -841,11 +1416,22 @@ if [[ ! -f "$CONTEXT_FILE" ]]; then
     echo -e "${YELLOW}Warning: $CONTEXT_FILE not found${NC}"
 fi
 
+# Main mode testing guidance (injected into context)
+MAIN_MODE_HEADER="## DEVELOPMENT MODE - Testing Requirements
+
+**Testing is CRITICAL for the feedback loop:**
+- If no tests exist yet → flag as 🟡 ISSUE: \"No tests - add test for this feature\"
+- If tests exist but don't cover new code → flag as 🟡 ISSUE: \"Add test coverage\"
+- Tests let you VERIFY the implementation works - without them you're blind
+- A feature without tests is not truly complete
+
+"
+
 # Load context fresh each iteration
 load_context() {
-    CONTEXT=""
+    CONTEXT="$MAIN_MODE_HEADER"
     if [[ -f "$CONTEXT_FILE" ]]; then
-        CONTEXT=$(cat "$CONTEXT_FILE")
+        CONTEXT+=$(cat "$CONTEXT_FILE")
     fi
     # Also include CLAUDE.md if exists (project rules)
     if [[ -f "CLAUDE.md" ]]; then
@@ -864,8 +1450,14 @@ if [[ "$SAFE_MODE" == true ]]; then
     echo ""
 fi
 
+# Log session start
+log "INFO" "=== Bjarne session started ==="
+log "INFO" "Max iterations: $MAX_ITERATIONS, Safe mode: $SAFE_MODE"
+log "INFO" "Working directory: $(pwd)"
+
 echo -e "${CYAN}Bjarne starting - max $MAX_ITERATIONS iterations${NC}"
 echo -e "${CYAN}Loop: PLAN → EXECUTE → REVIEW → FIX${NC}"
+echo -e "${CYAN}Logs: $LOG_FILE${NC}"
 echo ""
 
 for i in $(seq 1 $MAX_ITERATIONS); do
@@ -886,7 +1478,7 @@ for i in $(seq 1 $MAX_ITERATIONS); do
     echo -e "${BLUE}[1/4 PLAN]${NC} Analyzing..."
     if ! run_claude "$CONTEXT
 
-$PLAN_PROMPT"; then
+$PLAN_PROMPT" "PLAN"; then
         echo -e "${RED}Plan phase failed after $MAX_RETRIES retries - aborting${NC}"
         exit 1
     fi
@@ -900,7 +1492,7 @@ $PLAN_PROMPT"; then
     echo -e "${BLUE}[2/4 EXECUTE]${NC} Implementing..."
     if ! run_claude "$CONTEXT
 
-$EXECUTE_PROMPT"; then
+$EXECUTE_PROMPT" "EXECUTE"; then
         echo -e "${RED}Execute phase failed after $MAX_RETRIES retries - aborting${NC}"
         exit 1
     fi
@@ -909,7 +1501,7 @@ $EXECUTE_PROMPT"; then
     echo -e "${BLUE}[3/4 REVIEW]${NC} Reviewing..."
     if ! run_claude "$CONTEXT
 
-$REVIEW_PROMPT"; then
+$REVIEW_PROMPT" "REVIEW"; then
         echo -e "${RED}Review phase failed after $MAX_RETRIES retries - aborting${NC}"
         exit 1
     fi
@@ -918,7 +1510,7 @@ $REVIEW_PROMPT"; then
     echo -e "${BLUE}[4/4 FIX]${NC} Fixing..."
     if ! run_claude "$CONTEXT
 
-$FIX_PROMPT"; then
+$FIX_PROMPT" "FIX"; then
         echo -e "${RED}Fix phase failed after $MAX_RETRIES retries - aborting${NC}"
         exit 1
     fi
