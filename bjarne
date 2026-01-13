@@ -263,6 +263,14 @@ If you encounter an environment issue (missing tool, dependency, wrong setup):
 - Mark as: 🔧 ENVIRONMENT ISSUE (not BLOCKER)
 - Include REMEDIATION: what needs to be installed/configured to fix it
 
+## CRITICAL: Pre-existing Issues MUST Be Flagged
+If you discover a broken build, failing tests, or other issues:
+- Flag them even if they existed BEFORE the current task
+- Do NOT dismiss issues as "pre-existing, not blocking"
+- A broken codebase is a broken codebase - it must be fixed
+- The FIX step will handle all flagged issues
+- If something fails (db:push, tests, build), flag it as an ISSUE
+
 ## Check Against Pending Tasks
 Before flagging unused code, check TASKS.md:
 - Will a pending task use it? → Not an issue, note "scaffolding for task X"
@@ -342,6 +350,11 @@ Environment issues are SOLVABLE. You must:
 3. Consider SUGGESTIONS (nice to have)
 4. Re-run TEST_COMMAND to confirm
 5. Commit fixes: "fix: [description]"
+
+**IMPORTANT: Fix ALL flagged issues, not just ones from the current task.**
+If REVIEW flagged a pre-existing issue (broken build, failing db:push, etc.),
+you MUST fix it. Don't skip issues because "another task caused it."
+A broken codebase blocks all future work - fix it now.
 
 ## After Fixing
 If all fixed + tests pass:
