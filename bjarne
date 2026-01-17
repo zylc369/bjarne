@@ -1353,8 +1353,8 @@ if [[ "$1" == "task" ]]; then
         # Create isolated worktree unless --no-worktree flag is set
         if [[ "$TASK_NO_WORKTREE" != true ]]; then
             # Generate branch name from task description
-            local first_line=$(echo "$TASK_DESCRIPTION" | grep -v '^#' | grep -v '^$' | head -1)
-            local branch_slug=$(echo "$first_line" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | cut -c1-40)
+            first_line=$(echo "$TASK_DESCRIPTION" | grep -v '^#' | grep -v '^$' | head -1)
+            branch_slug=$(echo "$first_line" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | cut -c1-40)
             WORKTREE_BRANCH="feature/${branch_slug}"
             WORKTREE_PATH="/tmp/bjarne-worktree-$TASK_ID"
 
