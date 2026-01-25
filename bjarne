@@ -79,17 +79,22 @@ check_for_updates() {
     # Create config dir if needed
     mkdir -p "$BJARNE_CONFIG_DIR"
 
+    # 获取当前时间戳（秒）
     local now=$(date +%s)
 
     # Check if we need to check (every 2 days)
+    # 检查是否已经记录过上次更新检查时间
     if [[ -f "$BJARNE_LAST_UPDATE_CHECK" ]]; then
+        # 读取上次检查的时间戳；若读取失败则默认为 0
         local last_check=$(cat "$BJARNE_LAST_UPDATE_CHECK" 2>/dev/null || echo "0")
+        # 如果距离上次检查的时间小于设定的更新检查间隔（例如 2 天 = 172800 秒），则跳过本次检查
         if (( now - last_check < BJARNE_UPDATE_INTERVAL )); then
             return 0  # Not time to check yet
         fi
     fi
 
     # Record this check time
+    # 记录本次检查的时间戳，避免频繁请求
     echo "$now" > "$BJARNE_LAST_UPDATE_CHECK"
 
     # Get path to this script
@@ -98,6 +103,12 @@ check_for_updates() {
 
     # Fetch remote script to temp file
     local temp_remote=$(mktemp)
+
+    # 尝试从远程 URL 下载最新版本的脚本；若失败则清理临时文件并静默退出
+    # -f: 当 HTTP 状态码表示错误（如 404 Not Found、500 Internal Server Error）时，不输出错误页面内容，并返回非零退出码。
+    # -s: 静默模式，不显示进度条或错误信息。
+    # -S: 在静默模式下显示错误信息（与 -s 一起使用）。-sS 的组合 = “平时安静，出错说话”。
+    # -L: 遇到重定向时，自动跟随重定向 URL。
     if ! curl -fsSL "$BJARNE_REMOTE_URL" -o "$temp_remote" 2>/dev/null; then
         rm -f "$temp_remote"
         return 0  # Silently fail if can't fetch
@@ -107,6 +118,7 @@ check_for_updates() {
     local local_hash=$(sha256sum "$script_path" 2>/dev/null | cut -d' ' -f1)
     local remote_hash=$(sha256sum "$temp_remote" 2>/dev/null | cut -d' ' -f1)
 
+    # 如果哈希值相同，说明已是最新版，无需更新
     if [[ "$local_hash" == "$remote_hash" ]]; then
         rm -f "$temp_remote"
         return 0  # Already up to date
@@ -117,6 +129,7 @@ check_for_updates() {
     echo -n "Do you want to update? [y/N] "
     read -r response
 
+    # 如果用户输入不是 y 或 Y，则跳过更新，=~ 正则表达式匹配操作符。
     if [[ ! "$response" =~ ^[Yy]$ ]]; then
         echo -e "${YELLOW}Update skipped.${NC}"
         rm -f "$temp_remote"
@@ -128,22 +141,29 @@ check_for_updates() {
 
     # Check if we need sudo
     if [[ -w "$script_path" ]]; then
+        # 有写权限：直接覆盖并赋予执行权限
         cp "$temp_remote" "$script_path"
         chmod +x "$script_path"
     else
+        # 无写权限：提示需要 sudo，并尝试用 sudo 更新
         echo -e "${YELLOW}Need elevated permissions to update ${script_path}${NC}"
         if ! sudo cp "$temp_remote" "$script_path"; then
+            # 如果 sudo 复制失败，报错并清理
             echo -e "${RED}Update failed - could not write to ${script_path}${NC}"
             rm -f "$temp_remote"
             return 1
         fi
+        # 赋予执行权限（同样需要 sudo）
         sudo chmod +x "$script_path"
     fi
 
+    # 清理临时文件
     rm -f "$temp_remote"
 
+    # 提示更新成功，并建议用户重新运行原命令
     echo -e "${GREEN}bjarne updated successfully!${NC}"
     echo -e "${YELLOW}Please re-run your command: bjarne $*${NC}"
+    # 成功更新后退出当前进程（因为脚本已改变）
     exit 0
 }
 
@@ -1833,6 +1853,12 @@ $(cat "$TASK_SUBTASKS" 2>/dev/null || echo "No subtasks file found")
     rm -rf "$TASK_DIR"
     echo -e "${GREEN}Done${NC}"
     exit 0
+fi
+
+# Only execute when run directly, not when sourced
+if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
+    echo -e "${RED}Error: bjarne script should be run directly, not sourced${NC}"
+    exit 1
 fi
 
 #==============================================================================
