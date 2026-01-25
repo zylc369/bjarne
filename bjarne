@@ -584,53 +584,7 @@ if [[ "$1" == "refresh" ]]; then
 
     echo -e "${CYAN}Bjarne refreshing project from: $NOTES_FILE${NC}"
 
-    read -r -d '' REFRESH_PROMPT << 'REFRESH_EOF' || true
-# PROJECT REFRESH
-
-You have freeform notes from the user after testing/reviewing the project.
-Your job: Update CONTEXT.md if needed and ADD new tasks to TASKS.md.
-
-## The Notes May Contain
-- Bug reports from manual testing
-- New feature requests
-- Tweaks and adjustments needed
-- Things that didn't work as expected
-- New ideas to add
-
-## Your Job
-1. Read the notes file carefully
-2. Read current CONTEXT.md to understand the project
-3. Read current TASKS.md to see what's done and what's pending
-4. Explore relevant code if needed to understand the issues
-
-## What to Update
-
-### CONTEXT.md (only if needed)
-- Add new architectural decisions if the notes change direction
-- Update "What We're Building" only if scope genuinely changed
-- Usually you WON'T need to change CONTEXT.md
-
-### TASKS.md (main update)
-- KEEP all existing tasks (completed and pending)
-- ADD new tasks at the bottom based on the notes
-- Group related new tasks together
-- Each task should be atomic (one iteration)
-- **Format: `- [ ] Action → Outcome`** (outcome must be machine-verifiable)
-
-## Task Naming (always include → Outcome)
-- Bug fix: `- [ ] Fix: [bug] → [expected behavior after fix]`
-- New feature: `- [ ] Add: [feature] → [how to verify it works]`
-- Tweak/adjust: `- [ ] Adjust: [change] → [what should be different]`
-- Refactor: `- [ ] Refactor: [target] → [verification that behavior unchanged]`
-
-## What NOT to Do
-- Don't remove or reorder existing tasks
-- Don't mark tasks complete (that's for the dev loop)
-- Don't expand beyond what's in the notes
-- Don't duplicate existing tasks
-
-Read the notes, understand what's needed, update the project.
-REFRESH_EOF
+    REFRESH_PROMPT=$(cat "${SCRIPT_DIR}/resources/prompt_refresh.md")
 
     NOTES_CONTENT=$(cat "$NOTES_FILE")
     CONTEXT_CONTENT=$(cat "$CONTEXT_FILE")
@@ -910,36 +864,7 @@ If the task description includes specific git instructions (branch name, workflo
 - [ ] Add onClick handler to login button → Button calls handleLogin function when clicked"
     fi
 
-    read -r -d '' DECOMPOSE_PROMPT_BASE << 'DECOMPOSE_EOF' || true
-# DECOMPOSE TASK
-
-**IMPORTANT: This is the first step of an automated pipeline.**
-- There is NO human in the loop - your output feeds into the task execution loop
-- Do NOT ask questions or request clarification - work with what you have
-- Be direct and factual - no conversational language needed
-
-You are breaking down a task for an autonomous coding agent.
-
-CRITICAL: You are working on an EXISTING project. Do NOT delete any source files,
-configuration files, or project files. Only modify files directly related to this task.
-The project's existing files are NOT bjarne artifacts - do NOT remove them.
-
-## Instructions
-1. Explore the codebase to understand the relevant code
-2. Break this into discrete subtasks (or keep as one if simple enough)
-3. Each subtask must have: Action → Outcome (verifiable)
-4. Output ONLY a markdown checklist to SUBTASKS.md file
-
-## Subtask Format
-Each line must be: `- [ ] Action → Outcome`
-- Action: What to implement (specific, atomic)
-- Outcome: How to verify it worked (must be machine-checkable)
-
-## Output
-Write ONLY the subtask checklist to the SUBTASKS.md file. Nothing else.
-Keep subtasks focused, atomic, and verifiable.
-DECOMPOSE_EOF
-
+    DECOMPOSE_PROMPT_BASE=$(cat "${SCRIPT_DIR}/resources/prompt_decompose_task.md")
     DECOMPOSE_FULL_PROMPT="# TASK TO DECOMPOSE:
 $TASK_DESCRIPTION
 
@@ -1122,82 +1047,9 @@ $FIX_PROMPT" "TASK_FIX"; then
 
     # Build finalize prompt - different based on worktree mode
     if [[ -n "$WORKTREE_PATH" ]]; then
-        read -r -d '' FINALIZE_PROMPT << FINALIZE_EOF || true
-# FINALIZE TASK
-
-**IMPORTANT: This is the final step of an automated pipeline.**
-- There is NO human in the loop - just complete the finalization
-- Do NOT ask questions or request approval - just do the steps
-- Be direct and factual - no conversational language needed
-
-**GIT WORKTREE MODE:** You are in an isolated worktree on branch: $WORKTREE_BRANCH
-- Do NOT switch branches - bjarne handles cleanup
-- Just commit, push, and create PR
-
-The task loop has completed. Now finalize the work:
-
-## Your Actions
-
-1. **Check git status**
-   - Are there uncommitted changes? If so, commit them.
-   - Are there commits to push?
-
-2. **Push the branch**
-   - Push: \`git push -u origin $WORKTREE_BRANCH\`
-   - If push fails (no remote, auth issues), just note it and continue
-
-3. **Create PR if appropriate**
-   - Only if: pushed successfully and \`gh\` CLI is available
-   - Check if PR already exists: \`gh pr list --head $WORKTREE_BRANCH\`
-   - If no PR exists, create one with a good title and description
-   - Include what was changed and how to test it
-
-4. **Output summary**
-   - List what was accomplished
-   - Note any issues or incomplete items
-   - Include PR URL if created
-
-## Constraints
-- Do NOT run git checkout or git switch - stay on $WORKTREE_BRANCH
-FINALIZE_EOF
+        FINALIZE_PROMPT=$(get_finalize_prompt)
     else
-        read -r -d '' FINALIZE_PROMPT << 'FINALIZE_EOF' || true
-# FINALIZE TASK
-
-**IMPORTANT: This is the final step of an automated pipeline.**
-- There is NO human in the loop - just complete the finalization
-- Do NOT ask questions or request approval - just do the steps
-- Be direct and factual - no conversational language needed
-
-The task loop has completed. Now finalize the work:
-
-## Your Actions
-
-1. **Check git status**
-   - What branch are you on?
-   - Are there uncommitted changes? If so, commit them.
-   - Are there commits to push?
-
-2. **Push if on a feature branch**
-   - If you created a feature branch and have commits, push it: `git push -u origin <branch>`
-   - If push fails (no remote, auth issues), just note it and continue
-
-3. **Create PR if appropriate**
-   - Only if: on a feature branch, pushed successfully, `gh` CLI is available
-   - Check if PR already exists: `gh pr list --head <branch>`
-   - If no PR exists, create one with a good title and description
-   - Include what was changed and how to test it
-
-4. **Return to original branch**
-   - Switch back to the starting branch
-
-5. **Output summary**
-   - List what was accomplished
-   - Note any issues or incomplete items
-   - Include PR URL if created
-
-## Constraints
-FINALIZE_EOF
+        FINALIZE_PROMPT=$(cat "${SCRIPT_DIR}/resources/prompt_finalize.md")
     fi
 
     # Add no-pr constraint if flag set

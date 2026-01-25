@@ -154,6 +154,52 @@ DO NOT implement. Just plan.
 BATCH_PLAN_EOF
 }
 
+get_finalize_prompt() {
+    local worktree_branch="$1"
+    
+    read -r -d '' prompt_content << FINALIZE_EOF || true
+# FINALIZE TASK
+
+**IMPORTANT: This is the final step of an automated pipeline.**
+- There is NO human in the loop - just complete the finalization
+- Do NOT ask questions or request approval - just do the steps
+- Be direct and factual - no conversational language needed
+
+**GIT WORKTREE MODE:** You are in an isolated worktree on branch: $worktree_branch
+- Do NOT switch branches - bjarne handles cleanup
+- Just commit, push, and create PR
+
+The task loop has completed. Now finalize the work:
+
+## Your Actions
+
+1. **Check git status**
+   - Are there uncommitted changes? If so, commit them.
+   - Are there commits to push?
+
+2. **Push the branch**
+   - Push: \`git push -u origin $worktree_branch\`
+   - If push fails (no remote, auth issues), just note it and continue
+
+3. **Create PR if appropriate**
+   - Only if: pushed successfully and \`gh\` CLI is available
+   - Check if PR already exists: \`gh pr list --head $worktree_branch\`
+   - If no PR exists, create one with a good title and description
+   - Include what was changed and how to test it
+
+4. **Output summary**
+   - List what was accomplished
+   - Note any issues or incomplete items
+   - Include PR URL if created
+
+## Constraints
+- Do NOT run git checkout or git switch - stay on $worktree_branch
+FINALIZE_EOF
+    
+    echo "$prompt_content"
+}
+
 # Export functions for use in other scripts
 export -f get_verbose_output_rules
 export -f get_batch_plan_prompt
+export -f get_finalize_prompt
