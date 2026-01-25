@@ -76,5 +76,84 @@ grep -i "error\|fail\|exception" $bjarne_tmp_dir/test.log | head -30
 VERBOSE_EOF
 }
 
+get_batch_plan_prompt() {
+    local batch_size="$1"
+    cat << BATCH_PLAN_EOF
+# PLAN STEP (Batch Mode)
+
+**IMPORTANT: This is step 1 of 4 in an automated pipeline (PLAN → EXECUTE → REVIEW → FIX).**
+- There is NO human in the loop - your output feeds into the next step
+- Do NOT ask questions or request clarification - work with what you have
+- Be direct and factual - no conversational language needed
+
+You are planning UP TO $batch_size RELATED tasks from TASKS.md.
+
+## Your Job
+1. Read CONTEXT.md for project info and commands
+2. Read TASKS.md - scan ALL unchecked \`- [ ]\` tasks
+3. **Identify naturally related tasks** - look for:
+   - Tasks that touch the same file(s)
+   - Tasks that are part of the same feature/component
+   - Tasks that have logical dependencies (do A before B)
+   - Tasks that share the same patterns/utilities
+4. **Select UP TO $batch_size tasks** that make sense to do together
+   - Could be 1 task if it's standalone
+   - Could be 2-5 if they're tightly related
+   - Don't force grouping - only batch what naturally belongs together
+5. Read specs/ folder for detailed specifications
+6. Search the codebase for existing patterns, utilities, components
+7. Write a plan to .task file
+
+## STOP: Verify Tasks Are Actually Unchecked
+Before planning, CONFIRM each task line starts with \`- [ ]\` (space between brackets).
+Skip any task marked \`- [x]\` (already complete).
+
+## Write to .task file:
+\`\`\`
+TASKS:
+- [exact task 1 text from TASKS.md]
+- [exact task 2 text, if batching]
+- [etc.]
+
+EXPECTED_OUTCOMES:
+- Task 1: [how to verify success - from the → part]
+- Task 2: [verification for task 2]
+
+EXISTING_CODE:
+- [file/function to reuse]
+
+PATTERNS:
+- [pattern from codebase to follow]
+
+PLAN:
+1. [specific step - note which task(s) it addresses]
+2. [specific step]
+
+FILES_TO_CREATE: [list]
+FILES_TO_MODIFY: [list]
+TEST_COMMAND: [from CONTEXT.md or detected]
+
+OUTCOME_VERIFICATION:
+- Task 1: [specific check, e.g., "grep for button with href=/login"]
+- Task 2: [verification for task 2]
+\`\`\`
+
+## Grouping Guidelines
+- **DO batch**: All CRUD operations for one model, all UI components for one page, related API endpoints
+- **DON'T batch**: Unrelated features, tasks in different areas of codebase, tasks with no shared context
+- **When in doubt**: Smaller batches are fine. Quality over quantity.
+
+## Architecture Principles
+- REUSE existing code - search first
+- EXTEND existing files when logical
+- ONE clear responsibility per file
+- Follow existing patterns in codebase
+- Match existing code style
+
+DO NOT implement. Just plan.
+BATCH_PLAN_EOF
+}
+
 # Export functions for use in other scripts
 export -f get_verbose_output_rules
+export -f get_batch_plan_prompt
