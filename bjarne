@@ -53,6 +53,11 @@ TASK_STATE=".task"
 MAX_RETRIES=5
 RETRY_DELAY=10
 
+SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
+
+# Source library components
+source "$SCRIPT_DIR/lib/prompts.sh"
+
 # Logging (use absolute path to survive worktree cd)
 BJARNE_PROJECT_ROOT="$(pwd)"
 LOG_DIR="$BJARNE_PROJECT_ROOT/.bjarne/logs"
@@ -601,60 +606,6 @@ If TRUE code blocker (rare - only security/data issues with no fix):
 - Keep .task file for context
 FIX_EOF
 
-#==============================================================================
-# VERBOSE OUTPUT RULES - Injected into all prompts to save tokens
-#==============================================================================
-
-# Generate verbose output rules with current temp folder path
-get_verbose_output_rules() {
-    cat << VERBOSE_EOF
-
-## MANDATORY: Verbose Command Output Redirection
-
-**YOU MUST FOLLOW THESE RULES. NO EXCEPTIONS.**
-
-**Log folder for this session**: $BJARNE_TMP_DIR
-
-### MANDATORY REDIRECTION - You MUST redirect these commands:
-- **Package managers**: npm, yarn, pnpm, pip, pip3, cargo, go get/build, composer, bundle, maven, gradle, apt, brew
-- **Build tools**: webpack, vite, tsc, esbuild, rollup, make, cmake, msbuild, gcc, g++, rustc, javac
-- **Container tools**: docker build, docker pull, docker run, docker-compose
-- **Test runners**: npm test, yarn test, jest, pytest, cargo test, go test, phpunit, rspec, mocha, vitest
-- **Database tools**: migrations, db:push, db:pull, prisma, drizzle, typeorm, sequelize
-- **Linters/Formatters**: eslint, prettier, black, flake8, clippy
-
-### REQUIRED PATTERN - Use this exact format:
-\`\`\`bash
-# CORRECT - redirect and show exit code:
-npm install > $BJARNE_TMP_DIR/install.log 2>&1; echo "Exit code: \$?"
-npm test > $BJARNE_TMP_DIR/test.log 2>&1; echo "Exit code: \$?"
-npm run build > $BJARNE_TMP_DIR/build.log 2>&1; echo "Exit code: \$?"
-cargo build > $BJARNE_TMP_DIR/build.log 2>&1; echo "Exit code: \$?"
-pytest > $BJARNE_TMP_DIR/test.log 2>&1; echo "Exit code: \$?"
-
-# WRONG - never do this:
-npm install          # FORBIDDEN
-npm test             # FORBIDDEN
-cargo build          # FORBIDDEN
-\`\`\`
-
-### After running, check results with:
-\`\`\`bash
-# If exit code was 0, check last few lines to confirm:
-tail -20 $BJARNE_TMP_DIR/test.log
-
-# If exit code was non-zero, find errors:
-grep -i "error\|fail\|exception" $BJARNE_TMP_DIR/test.log | head -30
-\`\`\`
-
-### Commands that DON'T need redirection:
-- \`ls\`, \`cat\`, \`head\`, \`tail\`, \`grep\`, \`find\`
-- \`git status\`, \`git diff\`, \`git log\` (short output)
-- \`node script.js\` (when output is expected to be < 10 lines)
-- File reads and quick checks
-
-VERBOSE_EOF
-}
 
 #==============================================================================
 # SAFE MODE FUNCTIONS
