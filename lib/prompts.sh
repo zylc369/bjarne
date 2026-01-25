@@ -33,11 +33,29 @@ npm test > $bjarne_tmp_dir/test.log 2>&1; echo "Exit code: \$?"
 npm run build > $bjarne_tmp_dir/build.log 2>&1; echo "Exit code: \$?"
 cargo build > $bjarne_tmp_dir/build.log 2>&1; echo "Exit code: \$?"
 pytest > $bjarne_tmp_dir/test.log 2>&1; echo "Exit code: \$?"
+mvn install > $BJARNE_TMP_DIR/install.log 2>&1; echo "Exit code: $?"
+mvn clean compile > $BJARNE_TMP_DIR/build.log 2>&1; echo "Exit code: $?"
+mvn compile > $BJARNE_TMP_DIR/build.log 2>&1; echo "Exit code: $?"
+mvn clean package > $BJARNE_TMP_DIR/build.log 2>&1; echo "Exit code: $?"
+mvn package > $BJARNE_TMP_DIR/build.log 2>&1; echo "Exit code: $?"
+mvn clean > $BJARNE_TMP_DIR/build.log 2>&1; echo "Exit code: $?"
+mvn test > $BJARNE_TMP_DIR/test.log 2>&1; echo "Exit code: $?"
+gradlew install > $BJARNE_TMP_DIR/install.log 2>&1; echo "Exit code: $?"
+gradlew build > $BJARNE_TMP_DIR/build.log 2>&1; echo "Exit code: $?"
+gradlew test > $BJARNE_TMP_DIR/test.log 2>&1; echo "Exit code: $?"
+gradlew assemble > $BJARNE_TMP_DIR/build.log 2>&1; echo "Exit code: $?"
 
 # WRONG - never do this:
 npm install          # FORBIDDEN
 npm test             # FORBIDDEN
 cargo build          # FORBIDDEN
+mvn install          # FORBIDDEN
+mvn clean compile    # FORBIDDEN
+mvn compile          # FORBIDDEN
+mvn clean package    # FORBIDDEN
+mvn package          # FORBIDDEN
+mvn clean            # FORBIDDEN
+mvn test             # FORBIDDEN
 \`\`\`
 
 ### After running, check results with:
