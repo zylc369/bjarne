@@ -48,12 +48,12 @@ if [[ "$1" == "init" ]]; then
     done
 
     if [[ -z "$IDEA_FILE" ]]; then
-        echo -e "${RED}Usage: bjarne init [--safe] <idea.md>${NC}"
+        log "ERROR" "Usage: bjarne init [--safe] <idea.md>"
         exit 1
     fi
 
     if [[ ! -f "$IDEA_FILE" ]]; then
-        echo -e "${RED}Error: $IDEA_FILE not found${NC}"
+        log "ERROR" "$IDEA_FILE not found"
         exit 1
     fi
 
@@ -63,7 +63,7 @@ if [[ "$1" == "init" ]]; then
     # [[ -n "$SRC_FILES" ]] && EXISTING_PROJECT="true"
     # Prompt user to confirm
     if [[ -n "$SRC_FILES" ]]; then
-        echo "检测到源代码文件。"
+        log "INFO" "Detected source code files."
 
         while true; do
             read -n1 -p "这是否是一个已存在的项目？(y/n): " yn
@@ -83,13 +83,13 @@ if [[ "$1" == "init" ]]; then
             esac
         done
     else
-        echo "未检测到常见源代码文件，假设为新项目。"
+        log "INFO" "未检测到常见源代码文件，假设为新项目。"
     fi
 
     if [[ "$EXISTING_PROJECT" == "true" ]]; then
-        echo -e "${CYAN}Bjarne initializing EXISTING project from: $IDEA_FILE${NC}"
+        log "LIGHT" "Bjarne initializing EXISTING project from: $IDEA_FILE"
     else
-        echo -e "${CYAN}Bjarne initializing NEW project from: $IDEA_FILE${NC}"
+        log "LIGHT" "Bjarne initializing NEW project from: $IDEA_FILE"
     fi
 
     # Detect existing environment
@@ -153,9 +153,9 @@ $INIT_PROMPT" "INIT" "false"
 
     # Verify files were created
     if [[ -f "$CONTEXT_FILE" ]] && [[ -f "$TASK_FILE" ]]; then
-        echo -e "${GREEN}Project initialized!${NC}"
-        echo -e "  - $CONTEXT_FILE"
-        echo -e "  - $TASK_FILE"
+        log "SUCCESS" "Project initialized!"
+        log "INFO" "  - $CONTEXT_FILE"
+        log "INFO" "  - $TASK_FILE"
         [[ -d "$SPECS_DIR" ]] && echo -e "  - $SPECS_DIR/"
 
         # Init git repo if git available and not already in a repo

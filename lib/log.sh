@@ -38,7 +38,7 @@ inner_log() {
         "WARN")  color=$YELLOW ;;
         "ERROR") color=$RED ;;
         "SUCCESS") color=$GREEN ;;
-        "LOOP") color=$CYAN ;;
+        "LIGHT") color=$CYAN ;;
     esac
 
     echo -e "${color}${log_content}${NC}"
