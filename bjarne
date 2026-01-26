@@ -122,6 +122,13 @@ log_failure() {
 # Safe mode (Docker) settings
 SAFE_MODE=false
 
+inner_run_claude() {
+    local user_prompt="$1"
+    local phase="$2"
+
+    run_claude "$user_prompt" "$phase" "$SAFE_MODE"
+}
+
 #==============================================================================
 # PROMPTS - Defined early so both task mode and main loop can use them
 #==============================================================================
@@ -276,7 +283,7 @@ $(cat CLAUDE.md)
 "
     fi
 
-    run_claude "# IDEA FILE CONTENT:
+    inner_run_claude "# IDEA FILE CONTENT:
 
 $IDEA_CONTENT
 
@@ -396,7 +403,7 @@ $(cat CLAUDE.md)
 "
     fi
 
-    run_claude "# USER'S NOTES:
+    inner_run_claude "# USER'S NOTES:
 
 $NOTES_CONTENT
 
@@ -678,7 +685,7 @@ Write subtasks to: $TASK_SUBTASKS
 
 $DECOMPOSE_PROMPT_BASE"
 
-    if ! run_claude "$DECOMPOSE_FULL_PROMPT" "DECOMPOSE"; then
+    if ! inner_run_claude "$DECOMPOSE_FULL_PROMPT" "DECOMPOSE"; then
         echo -e "${RED}Decompose phase failed - aborting${NC}"
         task_log "ERROR" "[DECOMPOSE] Failed - aborting"
         # EXIT trap handles worktree cleanup
@@ -772,7 +779,7 @@ EXPECTED_OUTCOMES:
         # PLAN (uses main PLAN_PROMPT with task context)
         echo -e "${BLUE}[1/4 PLAN]${NC} Analyzing subtask..."
         task_log "INFO" "[PLAN] Starting..."
-        if ! run_claude "$ITER_CONTEXT
+        if ! inner_run_claude "$ITER_CONTEXT
 
 $PLAN_PROMPT" "TASK_PLAN"; then
             echo -e "${RED}Plan phase failed - aborting${NC}"
@@ -793,7 +800,7 @@ $PLAN_PROMPT" "TASK_PLAN"; then
         # EXECUTE (uses main EXECUTE_PROMPT with task context)
         echo -e "${BLUE}[2/4 EXECUTE]${NC} Implementing..."
         task_log "INFO" "[EXECUTE] Starting..."
-        if ! run_claude "$ITER_CONTEXT
+        if ! inner_run_claude "$ITER_CONTEXT
 
 $EXECUTE_PROMPT" "TASK_EXECUTE"; then
             echo -e "${RED}Execute phase failed - aborting${NC}"
@@ -805,7 +812,7 @@ $EXECUTE_PROMPT" "TASK_EXECUTE"; then
         # REVIEW (uses main REVIEW_PROMPT with task context)
         echo -e "${BLUE}[3/4 REVIEW]${NC} Reviewing..."
         task_log "INFO" "[REVIEW] Starting..."
-        if ! run_claude "$ITER_CONTEXT
+        if ! inner_run_claude "$ITER_CONTEXT
 
 $REVIEW_PROMPT" "TASK_REVIEW"; then
             echo -e "${RED}Review phase failed - aborting${NC}"
@@ -817,7 +824,7 @@ $REVIEW_PROMPT" "TASK_REVIEW"; then
         # FIX (uses main FIX_PROMPT with task context)
         echo -e "${BLUE}[4/4 FIX]${NC} Fixing..."
         task_log "INFO" "[FIX] Starting..."
-        if ! run_claude "$ITER_CONTEXT
+        if ! inner_run_claude "$ITER_CONTEXT
 
 $FIX_PROMPT" "TASK_FIX"; then
             echo -e "${RED}Fix phase failed - aborting${NC}"
@@ -863,7 +870,7 @@ $(cat "$TASK_SUBTASKS" 2>/dev/null || echo "No subtasks file found")
 "
 
     # Run finalize phase
-    if ! run_claude "$FINALIZE_PROMPT" "FINALIZE"; then
+    if ! inner_run_claude "$FINALIZE_PROMPT" "FINALIZE"; then
         echo -e "${YELLOW}Finalize phase had issues - check output above${NC}"
         task_log "WARN" "[FINALIZE] Had issues"
     else
@@ -1045,7 +1052,7 @@ for i in $(seq 1 $MAX_ITERATIONS); do
 
     # PLAN
     echo -e "${BLUE}[1/4 PLAN]${NC} Analyzing..."
-    if ! run_claude "$CONTEXT
+    if ! inner_run_claude "$CONTEXT
 
 $ACTIVE_PLAN_PROMPT" "PLAN"; then
         echo -e "${RED}Plan phase failed after $MAX_RETRIES retries - aborting${NC}"
@@ -1059,7 +1066,7 @@ $ACTIVE_PLAN_PROMPT" "PLAN"; then
 
     # EXECUTE
     echo -e "${BLUE}[2/4 EXECUTE]${NC} Implementing..."
-    if ! run_claude "$CONTEXT
+    if ! inner_run_claude "$CONTEXT
 
 $ACTIVE_EXECUTE_PROMPT" "EXECUTE"; then
         echo -e "${RED}Execute phase failed after $MAX_RETRIES retries - aborting${NC}"
@@ -1068,7 +1075,7 @@ $ACTIVE_EXECUTE_PROMPT" "EXECUTE"; then
 
     # REVIEW
     echo -e "${BLUE}[3/4 REVIEW]${NC} Reviewing..."
-    if ! run_claude "$CONTEXT
+    if ! inner_run_claude "$CONTEXT
 
 $ACTIVE_REVIEW_PROMPT" "REVIEW"; then
         echo -e "${RED}Review phase failed after $MAX_RETRIES retries - aborting${NC}"
@@ -1077,7 +1084,7 @@ $ACTIVE_REVIEW_PROMPT" "REVIEW"; then
 
     # FIX
     echo -e "${BLUE}[4/4 FIX]${NC} Fixing..."
-    if ! run_claude "$CONTEXT
+    if ! inner_run_claude "$CONTEXT
 
 $ACTIVE_FIX_PROMPT" "FIX"; then
         echo -e "${RED}Fix phase failed after $MAX_RETRIES retries - aborting${NC}"

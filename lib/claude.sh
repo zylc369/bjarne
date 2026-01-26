@@ -11,6 +11,8 @@ set -e
 run_claude() {
     local user_prompt="$1"
     local phase="${2:-UNKNOWN}"
+    local save_mode="${3:-false}"
+
     local attempt=1
     local exit_code
     local output
@@ -27,7 +29,7 @@ $(get_verbose_output_rules)"
     log "INFO" "Starting $phase phase (prompt: $prompt_size bytes)"
 
     while [[ $attempt -le $MAX_RETRIES ]]; do
-        if [[ "$SAFE_MODE" == true ]]; then
+        if [[ "$save_mode" == true ]]; then
             # Run in Docker container (as 'bjarne' user, not root)
             local docker_args="-v $(pwd):/workspace"
             docker_args+=" -v $HOME/.claude/.credentials.json:/home/bjarne/.claude/.credentials.json:ro"
