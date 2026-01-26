@@ -2,6 +2,13 @@
 
 set -e
 
+# Files
+TASK_FILE="TASKS.md"
+CONTEXT_FILE="CONTEXT.md"
+SPECS_DIR="specs"
+TASK_STATE=".task"
+
+# Directories
 BJARNE_HOME="$HOME/.bjarne"
 
 BJARNE_PROJECT_ROOT="$(pwd)"
@@ -18,6 +25,11 @@ BJARNE_TMP_DIR="/tmp/bjarne-${BJARNE_INSTANCE_ID}"
 
 #==============================================================================
 # Export variables
+export TASK_FILE
+export CONTEXT_FILE
+export SPECS_DIR
+export TASK_STATE
+
 export BJARNE_HOME
 export BJARNE_PROJECT_ROOT
 export PROJECT_BJARNE_DIR

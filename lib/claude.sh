@@ -61,6 +61,8 @@ $(get_verbose_output_rules)"
             exit_code=$?
         else
             # Run on host (existing behavior), capture output
+            # -p: 打印响应并退出（适用于管道操作）。注意：当Claude以-p模式运行时，会跳过工作区信任对话框。请仅在受信任的目录中使用此标志。
+            # --dangerously-skip-permissions: 绕过所有权限检查。建议仅在无网络访问的沙箱环境中使用。
             output=$(claude -p --dangerously-skip-permissions "$prompt" 2>&1)
             exit_code=$?
         fi
