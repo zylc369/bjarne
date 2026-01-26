@@ -4,6 +4,9 @@ set -e
 
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 
+# bjarne执行场景
+export BJARNE_EXECUTE_SCENE="init"
+
 # Source library components
 source "$SCRIPT_DIR/lib/consts.sh"
 source "$SCRIPT_DIR/lib/log.sh"

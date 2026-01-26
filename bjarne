@@ -50,9 +50,6 @@ echo "BJARNE_PROJECT_ROOT=$BJARNE_PROJECT_ROOT"
 echo "LOG_DIR=$LOG_DIR"
 echo "LOG_FILE=$LOG_FILE"
 
-# Ensure log directory exists
-mkdir -p "$LOG_DIR"
-
 # Instance-specific temp folder for verbose command output
 mkdir -p "$BJARNE_TMP_DIR"
 
