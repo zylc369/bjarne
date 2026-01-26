@@ -59,11 +59,11 @@ SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 source "$SCRIPT_DIR/lib/consts.sh"
 source "$SCRIPT_DIR/lib/prompts.sh"
 
-# Logging (use absolute path to survive worktree cd)
-BJARNE_PROJECT_ROOT="$(pwd)"
-LOG_DIR="$BJARNE_PROJECT_ROOT/.bjarne/logs"
-LOG_FILE="$LOG_DIR/bjarne.log"
-
+echo "SCRIPT_DIR=$SCRIPT_DIR"
+echo "BJARNE_HOME=$BJARNE_HOME"
+echo "BJARNE_PROJECT_ROOT=$BJARNE_PROJECT_ROOT"
+echo "LOG_DIR=$LOG_DIR"
+echo "LOG_FILE=$LOG_FILE"
 
 # Ensure log directory exists
 mkdir -p "$LOG_DIR"
@@ -426,8 +426,32 @@ if [[ "$1" == "init" ]]; then
 
     # Detect if this is an existing project (has source code files)
     EXISTING_PROJECT="false"
-    SRC_FILES=$(find . -maxdepth 3 -type f \( -name "*.js" -o -name "*.ts" -o -name "*.py" -o -name "*.php" -o -name "*.go" -o -name "*.rs" -o -name "*.java" -o -name "*.tsx" -o -name "*.jsx" \) 2>/dev/null | grep -v node_modules | grep -v vendor | grep -v __pycache__ | head -20)
-    [[ -n "$SRC_FILES" ]] && EXISTING_PROJECT="true"
+    SRC_FILES=$(find . -maxdepth 3 -type f \( -name "*.sql" -o -name "*.html" -o -name "*.js" -o -name "*.ts" -o -name "*.py" -o -name "*.php" -o -name "*.go" -o -name "*.rs" -o -name "*.java" -o -name "*.tsx" -o -name "*.jsx" \) 2>/dev/null | grep -v node_modules | grep -v vendor | grep -v __pycache__ | head -20)
+    # [[ -n "$SRC_FILES" ]] && EXISTING_PROJECT="true"
+    # Prompt user to confirm
+    if [[ -n "$SRC_FILES" ]]; then
+        echo "检测到源代码文件。"
+
+        while true; do
+            read -n1 -p "这是否是一个已存在的项目？(y/n): " yn
+            echo ""  # 手动换行，使界面整洁
+            case $yn in
+                [Yy])
+                    EXISTING_PROJECT="true"
+                    break
+                    ;;
+                [Nn])
+                    EXISTING_PROJECT="false"
+                    break
+                    ;;
+                *)
+                    echo "请输入 y（是）或 n（否）。"
+                    ;;
+            esac
+        done
+    else
+        echo "未检测到常见源代码文件，假设为新项目。"
+    fi
 
     if [[ "$EXISTING_PROJECT" == "true" ]]; then
         echo -e "${CYAN}Bjarne initializing EXISTING project from: $IDEA_FILE${NC}"
