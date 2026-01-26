@@ -28,13 +28,21 @@ inner_log() {
     local level="$1"
     local msg="$2"
     local file_path="$3"
+
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-
     local log_content="[$timestamp] [$level] $msg"
+    local color=""
+    
+    case $level in
+        # "INFO")  color=$BLUE ;;
+        "WARN")  color=$YELLOW ;;
+        "ERROR") color=$RED ;;
+        "SUCCESS") color=$GREEN ;;
+        "LOOP") color=$CYAN ;;
+    esac
 
-    if [ -z "$file_path" ]; then
-        echo "$log_content"
-    else
+    echo -e "${color}${log_content}${NC}"
+    if [ -n "$file_path" ]; then
         echo "$log_content" >> "$file_path"
     fi
 }

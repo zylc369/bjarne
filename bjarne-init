@@ -14,11 +14,13 @@ source "$SCRIPT_DIR/lib/prompts.sh"
 source "$SCRIPT_DIR/lib/safe_mode.sh"
 source "$SCRIPT_DIR/lib/claude.sh"
 
-echo "SCRIPT_DIR=$SCRIPT_DIR"
-echo "BJARNE_HOME=$BJARNE_HOME"
-echo "BJARNE_PROJECT_ROOT=$BJARNE_PROJECT_ROOT"
-echo "LOG_DIR=$LOG_DIR"
-echo "LOG_FILE=$LOG_FILE"
+log "INFO" "Starting Bjarne initialization script..."
+log "INFO" "BJARNE_EXECUTE_SCENE=$BJARNE_EXECUTE_SCENE"
+log "INFO" "SCRIPT_DIR=$SCRIPT_DIR"
+log "INFO" "BJARNE_HOME=$BJARNE_HOME"
+log "INFO" "BJARNE_PROJECT_ROOT=$BJARNE_PROJECT_ROOT"
+log "INFO" "LOG_DIR=$LOG_DIR"
+log "INFO" "LOG_FILE=$LOG_FILE"
 
 #==============================================================================
 # BJARNE INIT
