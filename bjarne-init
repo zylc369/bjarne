@@ -156,7 +156,7 @@ $INIT_PROMPT" "INIT" "false"
         log "SUCCESS" "Project initialized!"
         log "INFO" "  - $CONTEXT_FILE"
         log "INFO" "  - $TASK_FILE"
-        [[ -d "$SPECS_DIR" ]] && echo -e "  - $SPECS_DIR/"
+        [[ -d "$SPECS_DIR" ]] && log "INFO" "  - $SPECS_DIR/"
 
         # Init git repo if git available and not already in a repo
         if command -v git &> /dev/null; then
@@ -164,34 +164,34 @@ $INIT_PROMPT" "INIT" "false"
                 git init -q && \
                 git add -A && \
                 git commit -q -m "Initial project setup by Bjarne" && \
-                echo -e "  - git repo initialized" || true
+                log "INFO" "  - git repo initialized" || true
             fi
         fi
 
         # Generate Docker config if --safe flag was used
         if [[ "$INIT_SAFE_MODE" == true ]]; then
-            echo -e "${CYAN}Generating Docker configuration for safe mode...${NC}"
+            log "INFO" "Generating Docker configuration for safe mode..."
             generate_dockerfile
 
             # Add .bjarne to .gitignore if not already there
             if [[ -f ".gitignore" ]]; then
                 if ! grep -q "^\.bjarne/" ".gitignore" 2>/dev/null; then
-                    echo ".bjarne/" >> ".gitignore"
+                    log "INFO" ".bjarne/" >> ".gitignore"
                 fi
             else
                 echo ".bjarne/" > ".gitignore"
             fi
-            echo -e "  - Added .bjarne/ to .gitignore"
+            log "INFO" "  - Added .bjarne/ to .gitignore"
 
-            echo ""
-            echo -e "${GREEN}Safe mode enabled!${NC}"
-            echo -e "Container will only have access to this project directory."
+            log "INFO" ""
+            log "SUCCESS" "Safe mode enabled!"
+            log "INFO" "Container will only have access to this project directory."
         fi
 
-        echo ""
-        echo -e "${CYAN}Run 'bjarne' to start development${NC}"
+        log "INFO" ""
+        log "INFO" "Run 'bjarne' to start development"
     else
-        echo -e "${RED}Initialization incomplete - check output above${NC}"
+        log "ERROR" "Initialization incomplete - check output above"
     fi
 
     exit 0
