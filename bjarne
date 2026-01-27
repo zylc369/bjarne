@@ -298,13 +298,13 @@ if [[ "$1" == "task" ]]; then
     fi
 
     if [[ -z "$TASK_DESCRIPTION" ]]; then
-        echo -e "${RED}Usage: bjarne task [--safe] [--no-pr] [--no-worktree] [-n iterations] <description or file.md>${NC}"
-        echo ""
-        echo "Examples:"
-        echo "  bjarne task \"Fix the login button not responding\""
-        echo "  bjarne task bugfix.md                      # reads file as task"
-        echo "  bjarne task --safe \"Add payment integration\""
-        echo "  bjarne task --no-worktree \"Quick fix\"     # work in current checkout (affects other sessions)"
+        log "ERROR" "Usage: bjarne task [--safe] [--no-pr] [--no-worktree] [-n iterations] <description or file.md>"
+        log "INFO" ""
+        log "INFO" "Examples:"
+        log "INFO" "  bjarne task \"Fix the login button not responding\""
+        log "INFO" "  bjarne task bugfix.md                      # reads file as task"
+        log "INFO" "  bjarne task --safe \"Add payment integration\""
+        log "INFO" "  bjarne task --no-worktree \"Quick fix\"     # work in current checkout (affects other sessions)"
         exit 1
     fi
 
