@@ -47,16 +47,19 @@ BJARNE_HOME="$HOME/.bjarne"
 
 exec "$BJARNE_HOME/bjarne" "$@"
 EOF
+    chmod a+x "$BJARNE_BIN_DIR/bjarne"
     echo "Installed bjarne command to $BJARNE_BIN_DIR/bjarne"
 
     # Create bjarne-init command
     cat > "$BJARNE_BIN_DIR/bjarne-init" << 'EOF'
 #!/bin/bash
 
+
 BJARNE_HOME="$HOME/.bjarne"
 
 exec "$BJARNE_HOME/bjarne_init" "$@"
 EOF
+    chmod a+x "$BJARNE_BIN_DIR/bjarne-init"
     echo "Installed bjarne-init command to $BJARNE_BIN_DIR/bjarne-init"
 
     echo ""
