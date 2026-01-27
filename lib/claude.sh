@@ -60,6 +60,9 @@ $(get_verbose_output_rules $BJARNE_TMP_DIR)"
     while [[ $attempt -le $MAX_RETRIES ]]; do
         log "INFO" "[run_claude] Attempt $attempt for $phase phase"
 
+        local request_id="${session_id}#${attempt}"
+        log_ai_param "$request_id" "$(printf "%s\n" "${claude_args[@]}")"
+
         if [[ "$save_mode" == true ]]; then
             # Run in Docker container (as 'bjarne' user, not root)
             local docker_args="-v $(pwd):/workspace"
@@ -107,7 +110,7 @@ $(get_verbose_output_rules $BJARNE_TMP_DIR)"
 
         if [[ $exit_code -eq 0 ]]; then
             # Output the result (so it still shows on screen)
-            echo "$output"
+            log_ai_response "SUCCESS" "$request_id" "$output"
             log "INFO" "$phase phase completed successfully"
             return 0
         fi
@@ -115,17 +118,38 @@ $(get_verbose_output_rules $BJARNE_TMP_DIR)"
         # Check for the specific streaming error
         if echo "$output" | grep -q "only prompt commands are supported in streaming mode"; then
             log "ERROR" "$phase: Got 'streaming mode' error (attempt $attempt)"
-            echo -e "${YELLOW}  Claude failed (attempt $attempt/$MAX_RETRIES, exit code $exit_code)${NC}"
-            echo -e "${RED}  Error: 'only prompt commands are supported in streaming mode'${NC}"
+            log "ERROR" "  Claude failed (attempt $attempt/$MAX_RETRIES, exit code $exit_code)"
+            log "ERROR" "  Error: 'only prompt commands are supported in streaming mode'"
         else
-            echo -e "${YELLOW}  Claude failed (attempt $attempt/$MAX_RETRIES, exit code $exit_code)${NC}"
+            log "ERROR" "  Claude failed (attempt $attempt/$MAX_RETRIES, exit code $exit_code)"
         fi
 
         # Log failure details including the actual prompt
-        log_failure "$phase" "$attempt" "$exit_code" "$output" "$prompt_size" "$prompt"
+        claude_failure_msg_array=("=== BJARNE FAILURE LOG ===")
+        claude_failure_msg_array+=("Phase: $phase")
+        claude_failure_msg_array+=("Attempt: $attempt/$MAX_RETRIES")
+        claude_failure_msg_array+=("Exit Code: $exit_code")
+        claude_failure_msg_array+=("Prompt Size: $prompt_size bytes")
+        claude_failure_msg_array+=("Working directory: $(pwd)")
+        claude_failure_msg_array+=("Safe mode: $SAFE_MODE")
+        claude_failure_msg_array+=("")
+        claude_failure_msg_array+=("=== CLAUDE OUTPUT ===")
+        claude_failure_msg_array+=("$output")
+        claude_failure_msg_array+=("")
+        claude_failure_msg_array+=("=== CURRENT .task FILE (if exists) ===")
+        if [[ -f "$TASK_STATE" ]]; then
+            if content=$(cat "$TASK_STATE" 2>/dev/null); then
+                claude_failure_msg_array+=("$content")
+            else
+                claude_failure_msg_array+=("读取TASK_STATE文件失败")
+            fi
+        else
+            claude_failure_msg_array+=("(no .task file)")
+        fi
+        log_ai_response "ERROR" "$request_id" "$(printf "%s\n" "${claude_failure_msg_array[@]}")"
 
         if [[ $attempt -lt $MAX_RETRIES ]]; then
-            echo -e "${YELLOW}  Retrying in ${RETRY_DELAY}s...${NC}"
+            log "ERROR" "  Retrying in ${RETRY_DELAY}s..."
             sleep $RETRY_DELAY
         fi
 

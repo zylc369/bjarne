@@ -30,6 +30,7 @@ inner_log() {
     local level="$1"
     local msg="$2"
     local file_path="$3"
+    local output_to_terminal="${4:-true}"
 
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     local log_content="[$timestamp] [$level] $msg"
@@ -43,7 +44,10 @@ inner_log() {
         "LIGHT") color=$CYAN ;;
     esac
 
-    echo -e "${color}${log_content}${NC}"
+    if [[ "$output_to_terminal" == "true" ]]; then
+        echo -e "${color}${log_content}${NC}"
+    fi
+
     if [ -n "$file_path" ]; then
         echo "$log_content" >> "$file_path"
     fi
@@ -60,17 +64,20 @@ log_ai_param() {
 $msg
 =========================
 "
-    inner_log "INFO" "$new_msg" "$LOG_FILE_AI_PARAM_RESP"
+    inner_log "INFO" "$new_msg" "$LOG_FILE_AI_PARAM_RESP" "false"
+    log "INFO" "=== Logged AI PARAM [request_id=$request_id] ==="
 }
 
 log_ai_response() {
-    local request_id="$1"
-    local msg="$2"
+    local level="$1"
+    local request_id="$2"
+    local msg="$3"
     local new_msg="=== AI RESPONSE [request_id=$request_id] ===
 $msg
 =========================
 "
-    inner_log "INFO" "$new_msg" "$LOG_FILE_AI_PARAM_RESP"
+    inner_log "$level" "$new_msg" "$LOG_FILE_AI_PARAM_RESP" "false"
+    log "INFO" "=== Logged AI RESPONSE [request_id=$request_id] ==="
 }
 
 #==============================================================================

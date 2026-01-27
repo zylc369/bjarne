@@ -2,7 +2,6 @@
 # Bjarne - Autonomous AI development system
 #
 # Commands:
-#   bjarne init [--safe] <idea.md>  - Bootstrap project from idea file
 #   bjarne refresh <notes.md>       - Add tasks from freeform notes
 #   bjarne task [opts] "desc"       - Run isolated single-task mode
 #   bjarne [opts] [n]               - Run n iterations (default 25)
@@ -70,13 +69,17 @@ source "$SCRIPT_DIR/lib/prompts.sh"
 source "$SCRIPT_DIR/lib/safe_mode.sh"
 source "$SCRIPT_DIR/lib/claude.sh"
 
-echo "SCRIPT_DIR=$SCRIPT_DIR"
-echo "BJARNE_HOME=$BJARNE_HOME"
-echo "BJARNE_PROJECT_ROOT=$BJARNE_PROJECT_ROOT"
-echo "LOG_DIR=$LOG_DIR"
-echo "LOG_FILE=$LOG_FILE"
+log "INFO" "🚀 Starting Bjarne script..."
+log "INFO" "BJARNE_EXECUTE_SCENE=$BJARNE_EXECUTE_SCENE"
+log "INFO" "SCRIPT_DIR=$SCRIPT_DIR"
+log "INFO" "BJARNE_HOME=$BJARNE_HOME"
+log "INFO" "BJARNE_PROJECT_ROOT=$BJARNE_PROJECT_ROOT"
+log "INFO" "LOG_DIR=$LOG_DIR"
+log "INFO" "LOG_FILE=$LOG_FILE"
+log "INFO" "BJARNE_TMP_DIR=$BJARNE_TMP_DIR"
 log "INFO" "BJARNE_CLAUDE_SESSION_IS_NEW=$BJARNE_CLAUDE_SESSION_IS_NEW"
 log "INFO" "BJARNE_CLAUDE_SESSION_ID=$BJARNE_CLAUDE_SESSION_ID"
+log "INFO" ""
 
 # Instance-specific temp folder for verbose command output
 mkdir -p "$BJARNE_TMP_DIR"
@@ -97,46 +100,6 @@ cleanup_temp() {
 #   3. 任何信号导致的退出
 #   4. 脚本中任何错误（如果有set -e）
 trap cleanup_temp EXIT INT TERM
-
-# Log with context (for failures)
-log_failure() {
-    local phase="$1"
-    local attempt="$2"
-    local exit_code="$3"
-    local output="$4"
-    local prompt_size="$5"
-    local prompt="$6"
-
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    local fail_file="$LOG_DIR/failure_${timestamp//[: -]/_}.log"
-
-    {
-        echo "=== BJARNE FAILURE LOG ==="
-        echo "Timestamp: $timestamp"
-        echo "Phase: $phase"
-        echo "Attempt: $attempt/$MAX_RETRIES"
-        echo "Exit code: $exit_code"
-        echo "Prompt size: $prompt_size bytes"
-        echo "Working directory: $(pwd)"
-        echo "Safe mode: $SAFE_MODE"
-        echo ""
-        echo "=== CLAUDE OUTPUT ==="
-        echo "$output"
-        echo ""
-        echo "=== ACTUAL PROMPT SENT ==="
-        echo "$prompt"
-        echo ""
-        echo "=== CURRENT .task FILE (if exists) ==="
-        if [[ -f "$TASK_STATE" ]]; then
-            cat "$TASK_STATE"
-        else
-            echo "(no .task file)"
-        fi
-    } > "$fail_file"
-
-    log "ERROR" "Failure logged to $fail_file"
-    echo -e "${YELLOW}  Failure details saved to: $fail_file${NC}"
-}
 
 # Safe mode (Docker) settings
 SAFE_MODE=false
@@ -950,4 +913,4 @@ $ACTIVE_FIX_PROMPT" "FIX"; then
     sleep 2
 done
 
-echo -e "${YELLOW}Max iterations reached${NC}"
+log "LIGHT" "Max iterations reached ($MAX_ITERATIONS) - exiting main loop"
