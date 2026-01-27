@@ -26,6 +26,18 @@ $(get_verbose_output_rules)"
 
     local prompt_size=${#prompt}
 
+    local claude_args=("-p", "--dangerously-skip-permissions")
+    if [[ "$BJARNE_CLAUDE_SESSION_IS_NEW" == "true" ]]; then
+        claude_args+=("--session-id" "$BJARNE_CLAUDE_SESSION_ID")
+    else
+        if [[ -n "$BJARNE_CLAUDE_SESSION_ID" ]]; then
+            claude_args+=("-r" "$BJARNE_CLAUDE_SESSION_ID")
+        else
+            log "WARNING" "没有指定session ID，继续使用Claude的默认会话管理"
+        fi
+    fi
+    claude_args+=("$prompt")
+
     log "INFO" "Starting $phase phase (prompt: $prompt_size bytes)"
 
     while [[ $attempt -le $MAX_RETRIES ]]; do
@@ -57,13 +69,13 @@ $(get_verbose_output_rules)"
             # Run as host user's UID/GID so mounted files have correct permissions
             output=$(docker run --rm --user "$(id -u):$(id -g)" -e HOME=/home/bjarne \
                 $docker_args -w /workspace "$IMAGE_NAME" \
-                claude -p --dangerously-skip-permissions "$prompt" 2>&1)
+                claude "${claude_args[@]}" 2>&1)
             exit_code=$?
         else
             # Run on host (existing behavior), capture output
             # -p: 打印响应并退出（适用于管道操作）。注意：当Claude以-p模式运行时，会跳过工作区信任对话框。请仅在受信任的目录中使用此标志。
             # --dangerously-skip-permissions: 绕过所有权限检查。建议仅在无网络访问的沙箱环境中使用。
-            output=$(claude -p --dangerously-skip-permissions "$prompt" 2>&1)
+            output=$(claude "${claude_args[@]}" 2>&1)
             exit_code=$?
         fi
 

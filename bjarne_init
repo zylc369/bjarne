@@ -7,6 +7,10 @@ SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 # bjarne执行场景
 export BJARNE_EXECUTE_SCENE="init"
 
+# session相关变量
+export BJARNE_CLAUDE_SESSION_IS_NEW="true"
+export BJARNE_CLAUDE_SESSION_ID=$(uuidgen)
+
 # Source library components
 source "$SCRIPT_DIR/lib/consts.sh"
 source "$SCRIPT_DIR/lib/log.sh"
@@ -15,6 +19,8 @@ source "$SCRIPT_DIR/lib/safe_mode.sh"
 source "$SCRIPT_DIR/lib/claude.sh"
 
 log "INFO" "Starting Bjarne initialization script..."
+log "INFO" "BJARNE_CLAUDE_SESSION_IS_NEW=$BJARNE_CLAUDE_SESSION_IS_NEW"
+log "INFO" "BJARNE_CLAUDE_SESSION_ID=$BJARNE_CLAUDE_SESSION_ID"
 log "INFO" "BJARNE_EXECUTE_SCENE=$BJARNE_EXECUTE_SCENE"
 log "INFO" "SCRIPT_DIR=$SCRIPT_DIR"
 log "INFO" "BJARNE_HOME=$BJARNE_HOME"
