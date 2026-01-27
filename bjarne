@@ -836,13 +836,13 @@ log "INFO" "=== Bjarne session started ==="
 log "INFO" "Max iterations: $MAX_ITERATIONS, Safe mode: $SAFE_MODE, Batch mode: $BATCH_MODE (size: $BATCH_SIZE)"
 log "INFO" "Working directory: $(pwd)"
 
-echo -e "${CYAN}Bjarne starting - max $MAX_ITERATIONS iterations${NC}"
+log "LIGHT" "Bjarne starting - max $MAX_ITERATIONS iterations"
 if [[ "$BATCH_MODE" == true ]]; then
-    echo -e "${CYAN}Batch mode: up to $BATCH_SIZE related tasks per iteration${NC}"
+    log "LIGHT" "Batch mode: up to $BATCH_SIZE related tasks per iteration"
 fi
-echo -e "${CYAN}Loop: PLAN → EXECUTE → REVIEW → FIX${NC}"
-echo -e "${CYAN}Logs: $LOG_FILE${NC}"
-echo ""
+log "LIGHT" "Loop: PLAN → EXECUTE → REVIEW → FIX"
+log "LIGHT" "Logs: $LOG_FILE"
+log "LIGHT" ""
 
 for i in $(seq 1 $MAX_ITERATIONS); do
     # Load context fresh each iteration
@@ -850,13 +850,13 @@ for i in $(seq 1 $MAX_ITERATIONS); do
 
     # Check for remaining tasks
     if ! grep -q '^\s*- \[ \]' "$TASK_FILE"; then
-        echo -e "${GREEN}All tasks complete!${NC}"
+        log "SUCCESS" "All tasks complete!"
         rm -f "$TASK_STATE"
         exit 0
     fi
 
     REMAINING=$(grep -c '^\s*- \[ \]' "$TASK_FILE" || echo "0")
-    echo -e "${YELLOW}=== Iteration $i/$MAX_ITERATIONS ($REMAINING tasks remaining) ===${NC}"
+    log "LIGHT2" "=== Iteration $i/$MAX_ITERATIONS ($REMAINING tasks remaining) ==="
 
     # Select prompts based on batch mode
     if [[ "$BATCH_MODE" == true ]]; then
@@ -872,43 +872,43 @@ for i in $(seq 1 $MAX_ITERATIONS); do
     fi
 
     # PLAN
-    echo -e "${BLUE}[1/4 PLAN]${NC} Analyzing..."
+    log "LIGHT3" "[1/4 PLAN] Analyzing..."
     if ! inner_run_claude "$CONTEXT
 
 $ACTIVE_PLAN_PROMPT" "PLAN"; then
-        echo -e "${RED}Plan phase failed after $MAX_RETRIES retries - aborting${NC}"
+        log "ERROR" "Plan phase failed after $MAX_RETRIES retries - aborting"
         exit 1
     fi
 
     if [[ ! -f "$TASK_STATE" ]]; then
-        echo -e "${RED}Plan failed - no .task file${NC}"
+        log "ERROR" "Plan failed - no .task file"
         continue
     fi
 
     # EXECUTE
-    echo -e "${BLUE}[2/4 EXECUTE]${NC} Implementing..."
+    log "LIGHT3" "[2/4 EXECUTE] Implementing..."
     if ! inner_run_claude "$CONTEXT
 
 $ACTIVE_EXECUTE_PROMPT" "EXECUTE"; then
-        echo -e "${RED}Execute phase failed after $MAX_RETRIES retries - aborting${NC}"
+        log "ERROR" "Execute phase failed after $MAX_RETRIES retries - aborting"
         exit 1
     fi
 
     # REVIEW
-    echo -e "${BLUE}[3/4 REVIEW]${NC} Reviewing..."
+    log "LIGHT3" "[3/4 REVIEW] Reviewing..."
     if ! inner_run_claude "$CONTEXT
 
 $ACTIVE_REVIEW_PROMPT" "REVIEW"; then
-        echo -e "${RED}Review phase failed after $MAX_RETRIES retries - aborting${NC}"
+        log "ERROR" "Review phase failed after $MAX_RETRIES retries - aborting"
         exit 1
     fi
 
     # FIX
-    echo -e "${BLUE}[4/4 FIX]${NC} Fixing..."
+    log "LIGHT3" "[4/4 FIX]${NC} Fixing..."
     if ! inner_run_claude "$CONTEXT
 
 $ACTIVE_FIX_PROMPT" "FIX"; then
-        echo -e "${RED}Fix phase failed after $MAX_RETRIES retries - aborting${NC}"
+        log "ERROR" "Fix phase failed after $MAX_RETRIES retries - aborting"
         exit 1
     fi
 

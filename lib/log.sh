@@ -42,6 +42,8 @@ inner_log() {
         "ERROR") color=$RED ;;
         "SUCCESS") color=$GREEN ;;
         "LIGHT") color=$CYAN ;;
+        "LIGHT2") color=$YELLOW ;;
+        "LIGHT3") color=$BLUE ;;
     esac
 
     if [[ "$output_to_terminal" == "true" ]]; then
