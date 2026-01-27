@@ -137,7 +137,7 @@ $(cat CLAUDE.md)
 "
     fi
 
-    run_claude "# IDEA FILE CONTENT:
+    run_claude "# IDEA CONTENT:
 
 $IDEA_CONTENT
 
