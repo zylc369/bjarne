@@ -111,9 +111,11 @@ inner_run_claude() {
     local session_obj=""
 
     if [[ "$INNER_RUN_CLAUDE_FIRST_RUN" == "true" ]]; then
+        # 首次运行，使用初始session
         session_obj="${BJARNE_CLAUDE_SESSION_IS_NEW},${BJARNE_CLAUDE_SESSION_ID}"
         INNER_RUN_CLAUDE_FIRST_RUN=false
     else
+        # 后续运行，session已存在
         session_obj="false,${BJARNE_CLAUDE_SESSION_ID}"
     fi
 
@@ -169,12 +171,12 @@ if [[ "$1" == "--rebuild" ]]; then
     SAFE_MODE=$(detect_safe_mode)
 
     if [[ "$SAFE_MODE" != true ]]; then
-        echo -e "${RED}Error: Not a safe mode project (no $DOCKERFILE found)${NC}"
-        echo -e "Run 'bjarne init --safe <idea.md>' to enable safe mode"
+        log "ERROR" "Error: Not a safe mode project (no $DOCKERFILE found)"
+        log "ERROR" "Run 'bjarne init --safe <idea.md>' to enable safe mode"
         exit 1
     fi
 
-    echo -e "${CYAN}Rebuilding Docker image...${NC}"
+    log "LIGHT" "Rebuilding Docker image..."
     build_docker_image "true"
     exit 0
 fi
@@ -186,26 +188,26 @@ if [[ "$1" == "refresh" ]]; then
     NOTES_FILE="$2"
 
     if [[ -z "$NOTES_FILE" ]]; then
-        echo -e "${RED}Usage: bjarne refresh <notes.md>${NC}"
+        log "ERROR" "Usage: bjarne refresh <notes.md>"
         exit 1
     fi
 
     if [[ ! -f "$NOTES_FILE" ]]; then
-        echo -e "${RED}Error: $NOTES_FILE not found${NC}"
+        log "ERROR" "Error: $NOTES_FILE not found"
         exit 1
     fi
 
     if [[ ! -f "$CONTEXT_FILE" ]]; then
-        echo -e "${RED}Error: $CONTEXT_FILE not found - run 'bjarne init' first${NC}"
+        log "ERROR" "Error: $CONTEXT_FILE not found - run 'bjarne init' first"
         exit 1
     fi
 
     if [[ ! -f "$TASK_FILE" ]]; then
-        echo -e "${RED}Error: $TASK_FILE not found - run 'bjarne init' first${NC}"
+        log "ERROR" "Error: $TASK_FILE not found - run 'bjarne init' first"
         exit 1
     fi
 
-    echo -e "${CYAN}Bjarne refreshing project from: $NOTES_FILE${NC}"
+    log "LIGHT" "Bjarne refreshing project from: $NOTES_FILE"
 
     REFRESH_PROMPT=$(cat "${SCRIPT_DIR}/resources/prompt_refresh.md")
 
@@ -243,10 +245,10 @@ $REFRESH_PROMPT" "REFRESH"
 
     # Show result
     NEW_TASKS=$(grep -c '^\s*- \[ \]' "$TASK_FILE" 2>/dev/null || echo "0")
-    echo -e "${GREEN}Project refreshed!${NC}"
-    echo -e "  - $NEW_TASKS pending tasks in $TASK_FILE"
-    echo ""
-    echo -e "${CYAN}Run 'bjarne' to work through the new tasks${NC}"
+    log "SUCCESS" "Project refreshed!"
+    log "INFO" "  - $NEW_TASKS pending tasks in $TASK_FILE"
+    log "INFO" ""
+    log "LIGHT" "Run 'bjarne' to work through the new tasks"
 
     exit 0
 fi
