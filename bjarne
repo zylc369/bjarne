@@ -721,13 +721,13 @@ $(cat "$TASK_SUBTASKS" 2>/dev/null || echo "No subtasks file found")
     # Cleanup task state directory
     echo -e "\n${CYAN}Cleaning up task state...${NC}"
     rm -rf "$TASK_DIR"
-    echo -e "${GREEN}Done${NC}"
+    log "SUCCESS" "Done"
     exit 0
 fi
 
 # Only execute when run directly, not when sourced
 if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
-    echo -e "${RED}Error: bjarne script should be run directly, not sourced${NC}"
+    log "ERROR" "Error: bjarne script should be run directly, not sourced"
     exit 1
 fi
 
@@ -775,12 +775,12 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         *)
-            echo -e "${RED}Unknown option: $1${NC}"
-            echo "Usage: bjarne [options] [iterations]"
-            echo "Options:"
-            echo "  --batch       Enable batch mode (up to 5 related tasks)"
-            echo "  --batch=N     Enable batch mode with custom size"
-            echo "  -b, -bN       Short form of --batch, --batch=N"
+            log "ERROR" "Unknown option: $1"
+            log "INFO" "Usage: bjarne [options] [iterations]"
+            log "INFO" "Options:"
+            log "INFO" "  --batch       Enable batch mode (up to 5 related tasks)"
+            log "INFO" "  --batch=N     Enable batch mode with custom size"
+            log "INFO" "  -b, -bN       Short form of --batch, --batch=N"
             exit 1
             ;;
     esac
@@ -788,13 +788,13 @@ done
 
 # Check required files
 if [[ ! -f "$TASK_FILE" ]]; then
-    echo -e "${RED}Error: $TASK_FILE not found${NC}"
-    echo -e "Run 'bjarne init <idea.md>' first"
+    log "ERROR" "Error: $TASK_FILE not found"
+    log "INFO" "Run 'bjarne init <idea.md>' first"
     exit 1
 fi
 
 if [[ ! -f "$CONTEXT_FILE" ]]; then
-    echo -e "${YELLOW}Warning: $CONTEXT_FILE not found${NC}"
+    log "WARNING" "Warning: $CONTEXT_FILE not found"
 fi
 
 # Main mode testing guidance (injected into context)
@@ -826,7 +826,7 @@ $(cat CLAUDE.md)"
 # Detect and setup safe mode if applicable
 SAFE_MODE=$(detect_safe_mode)
 if [[ "$SAFE_MODE" == true ]]; then
-    echo -e "${CYAN}Safe mode detected (.bjarne/Dockerfile found)${NC}"
+    log "LIGHT" "Safe mode detected (.bjarne/Dockerfile found)"
     build_docker_image "false"
     echo ""
 fi
