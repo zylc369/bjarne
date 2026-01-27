@@ -1,15 +1,26 @@
 #!/bin/bash
 
-set -e
+# -e: 命令失败时立即退出
+# -u: 使用未定义变量时报错
+set -eu
+
+# 捕获 ERR 信号，显示错误位置
+trap 'echo "错误发生在: $BASH_SOURCE 第 $LINENO 行, 命令: $BASH_COMMAND"' ERR
 
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 
 # bjarne执行场景
 export BJARNE_EXECUTE_SCENE="init"
 
+# Instance-specific temp folder for verbose command output
+# Uses PID + timestamp for uniqueness across concurrent instances
+BJARNE_INSTANCE_ID="$$_$(date +%s)"
+BJARNE_TMP_DIR="/tmp/bjarne-${BJARNE_EXECUTE_SCENE}-${BJARNE_INSTANCE_ID}"
+export BJARNE_TMP_DIR
+
 # session相关变量
-export BJARNE_CLAUDE_SESSION_IS_NEW="true"
-export BJARNE_CLAUDE_SESSION_ID=$(uuidgen)
+BJARNE_CLAUDE_SESSION_IS_NEW="true"
+BJARNE_CLAUDE_SESSION_ID=$(uuidgen)
 
 # Source library components
 source "$SCRIPT_DIR/lib/consts.sh"
@@ -19,14 +30,15 @@ source "$SCRIPT_DIR/lib/safe_mode.sh"
 source "$SCRIPT_DIR/lib/claude.sh"
 
 log "INFO" "Starting Bjarne initialization script..."
-log "INFO" "BJARNE_CLAUDE_SESSION_IS_NEW=$BJARNE_CLAUDE_SESSION_IS_NEW"
-log "INFO" "BJARNE_CLAUDE_SESSION_ID=$BJARNE_CLAUDE_SESSION_ID"
 log "INFO" "BJARNE_EXECUTE_SCENE=$BJARNE_EXECUTE_SCENE"
 log "INFO" "SCRIPT_DIR=$SCRIPT_DIR"
 log "INFO" "BJARNE_HOME=$BJARNE_HOME"
 log "INFO" "BJARNE_PROJECT_ROOT=$BJARNE_PROJECT_ROOT"
 log "INFO" "LOG_DIR=$LOG_DIR"
 log "INFO" "LOG_FILE=$LOG_FILE"
+log "INFO" "BJARNE_CLAUDE_SESSION_IS_NEW=$BJARNE_CLAUDE_SESSION_IS_NEW"
+log "INFO" "BJARNE_CLAUDE_SESSION_ID=$BJARNE_CLAUDE_SESSION_ID"
+log "INFO" ""
 
 #==============================================================================
 # BJARNE INIT
@@ -34,90 +46,128 @@ log "INFO" "LOG_FILE=$LOG_FILE"
 #==============================================================================
 # INIT COMMAND - Bootstrap from idea file (works on new or existing projects)
 #==============================================================================
-if [[ "$1" == "init" ]]; then
-    # Parse --safe flag and idea file
-    INIT_SAFE_MODE=false
-    IDEA_FILE=""
 
-    shift  # Remove "init" from args
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --safe)
-                INIT_SAFE_MODE=true
-                shift
+# Parse --safe flag and idea file
+INIT_SAFE_MODE=false
+IDEA_FILE=""
+
+# Helper 函数：显示帮助信息
+show_help() {
+    cat << EOF
+用法: $0 [选项]
+
+选项:
+  --safe          启用安全模式
+  -f, --file FILE 指定 IDEA 文件路径（必需）
+  -h, --help      显示此帮助信息
+
+示例:
+  $0 --safe --file /path/to/project.idea
+  $0 -f ./myproject.idea
+EOF
+}
+
+# Helper 函数：显示错误并退出
+show_error() {
+    echo "错误: $1" >&2
+    echo "使用 $0 --help 查看帮助信息" >&2
+    exit 1
+}
+
+# Helper 函数：显示未知选项错误
+handle_unknown_option() {
+    show_error "未知选项 '$1'"
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --safe)
+            INIT_SAFE_MODE=true
+            shift
+            ;;
+        -f|--file)
+            if [[ -z "${2:-}" ]]; then
+                echo "错误：$1 选项需要传文件路径" >&2
+                exit 1
+            fi
+            IDEA_FILE="$2"  # 正确的：取下一个参数作为文件路径
+            shift 2  # 跳过两个参数（选项和值）
+            ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        *)
+            handle_unknown_option "$1"
+            ;;
+    esac
+done
+
+if [[ -z "$IDEA_FILE" ]]; then
+    log "ERROR" "Usage: bjarne-init -f <idea.md> [--safe]"
+    exit 1
+fi
+
+if [[ ! -f "$IDEA_FILE" ]]; then
+    log "ERROR" "$IDEA_FILE not found"
+    exit 1
+fi
+
+# Detect if this is an existing project (has source code files)
+EXISTING_PROJECT="false"
+SRC_FILES=$(find . -maxdepth 3 -type f \( -name "*.sql" -o -name "*.html" -o -name "*.js" -o -name "*.ts" -o -name "*.py" -o -name "*.php" -o -name "*.go" -o -name "*.rs" -o -name "*.java" -o -name "*.tsx" -o -name "*.jsx" \) 2>/dev/null | grep -v node_modules | grep -v vendor | grep -v __pycache__ | head -20)
+# [[ -n "$SRC_FILES" ]] && EXISTING_PROJECT="true"
+# Prompt user to confirm
+if [[ -n "$SRC_FILES" ]]; then
+    log "INFO" "Detected source code files."
+
+    while true; do
+        read -n1 -p "这是否是一个已存在的项目？(y/n): " yn
+        echo ""  # 手动换行，使界面整洁
+        case $yn in
+            [Yy])
+                EXISTING_PROJECT="true"
+                break
+                ;;
+            [Nn])
+                EXISTING_PROJECT="false"
+                break
                 ;;
             *)
-                IDEA_FILE="$1"
-                shift
+                echo "请输入 y（是）或 n（否）。"
                 ;;
         esac
     done
+else
+    log "INFO" "未检测到常见源代码文件，假设为新项目。"
+fi
 
-    if [[ -z "$IDEA_FILE" ]]; then
-        log "ERROR" "Usage: bjarne init [--safe] <idea.md>"
-        exit 1
-    fi
+if [[ "$EXISTING_PROJECT" == "true" ]]; then
+    log "LIGHT" "Bjarne initializing EXISTING project from: $IDEA_FILE"
+else
+    log "LIGHT" "Bjarne initializing NEW project from: $IDEA_FILE"
+fi
 
-    if [[ ! -f "$IDEA_FILE" ]]; then
-        log "ERROR" "$IDEA_FILE not found"
-        exit 1
-    fi
+# Detect existing environment
+DETECTED=""
+[[ -f "package.json" ]] && DETECTED="${DETECTED}Found: package.json (Node.js/JavaScript)\n"
+[[ -f "tsconfig.json" ]] && DETECTED="${DETECTED}Found: tsconfig.json (TypeScript)\n"
+[[ -f "composer.json" ]] && DETECTED="${DETECTED}Found: composer.json (PHP)\n"
+[[ -f "requirements.txt" ]] && DETECTED="${DETECTED}Found: requirements.txt (Python)\n"
+[[ -f "pyproject.toml" ]] && DETECTED="${DETECTED}Found: pyproject.toml (Python)\n"
+[[ -f "pubspec.yaml" ]] && DETECTED="${DETECTED}Found: pubspec.yaml (Flutter/Dart)\n"
+[[ -f "Cargo.toml" ]] && DETECTED="${DETECTED}Found: Cargo.toml (Rust)\n"
+[[ -f "go.mod" ]] && DETECTED="${DETECTED}Found: go.mod (Go)\n"
+[[ -f "CLAUDE.md" ]] && DETECTED="${DETECTED}Found: CLAUDE.md (existing project rules)\n"
+[[ -f ".env.example" ]] && DETECTED="${DETECTED}Found: .env.example (needs .env setup)\n"
+[[ -d "node_modules" ]] || [[ -f "package.json" ]] && [[ ! -d "node_modules" ]] && DETECTED="${DETECTED}Note: node_modules missing - needs npm install\n"
+[[ -d "vendor" ]] || [[ -f "composer.json" ]] && [[ ! -d "vendor" ]] && DETECTED="${DETECTED}Note: vendor missing - needs composer install\n"
+[[ -f "pom.xml" ]] && DETECTED="${DETECTED}Found: pom.xml (Java/Maven)\n"
 
-    # Detect if this is an existing project (has source code files)
-    EXISTING_PROJECT="false"
-    SRC_FILES=$(find . -maxdepth 3 -type f \( -name "*.sql" -o -name "*.html" -o -name "*.js" -o -name "*.ts" -o -name "*.py" -o -name "*.php" -o -name "*.go" -o -name "*.rs" -o -name "*.java" -o -name "*.tsx" -o -name "*.jsx" \) 2>/dev/null | grep -v node_modules | grep -v vendor | grep -v __pycache__ | head -20)
-    # [[ -n "$SRC_FILES" ]] && EXISTING_PROJECT="true"
-    # Prompt user to confirm
-    if [[ -n "$SRC_FILES" ]]; then
-        log "INFO" "Detected source code files."
-
-        while true; do
-            read -n1 -p "这是否是一个已存在的项目？(y/n): " yn
-            echo ""  # 手动换行，使界面整洁
-            case $yn in
-                [Yy])
-                    EXISTING_PROJECT="true"
-                    break
-                    ;;
-                [Nn])
-                    EXISTING_PROJECT="false"
-                    break
-                    ;;
-                *)
-                    echo "请输入 y（是）或 n（否）。"
-                    ;;
-            esac
-        done
-    else
-        log "INFO" "未检测到常见源代码文件，假设为新项目。"
-    fi
-
-    if [[ "$EXISTING_PROJECT" == "true" ]]; then
-        log "LIGHT" "Bjarne initializing EXISTING project from: $IDEA_FILE"
-    else
-        log "LIGHT" "Bjarne initializing NEW project from: $IDEA_FILE"
-    fi
-
-    # Detect existing environment
-    DETECTED=""
-    [[ -f "package.json" ]] && DETECTED="${DETECTED}Found: package.json (Node.js/JavaScript)\n"
-    [[ -f "tsconfig.json" ]] && DETECTED="${DETECTED}Found: tsconfig.json (TypeScript)\n"
-    [[ -f "composer.json" ]] && DETECTED="${DETECTED}Found: composer.json (PHP)\n"
-    [[ -f "requirements.txt" ]] && DETECTED="${DETECTED}Found: requirements.txt (Python)\n"
-    [[ -f "pyproject.toml" ]] && DETECTED="${DETECTED}Found: pyproject.toml (Python)\n"
-    [[ -f "pubspec.yaml" ]] && DETECTED="${DETECTED}Found: pubspec.yaml (Flutter/Dart)\n"
-    [[ -f "Cargo.toml" ]] && DETECTED="${DETECTED}Found: Cargo.toml (Rust)\n"
-    [[ -f "go.mod" ]] && DETECTED="${DETECTED}Found: go.mod (Go)\n"
-    [[ -f "CLAUDE.md" ]] && DETECTED="${DETECTED}Found: CLAUDE.md (existing project rules)\n"
-    [[ -f ".env.example" ]] && DETECTED="${DETECTED}Found: .env.example (needs .env setup)\n"
-    [[ -d "node_modules" ]] || [[ -f "package.json" ]] && [[ ! -d "node_modules" ]] && DETECTED="${DETECTED}Note: node_modules missing - needs npm install\n"
-    [[ -d "vendor" ]] || [[ -f "composer.json" ]] && [[ ! -d "vendor" ]] && DETECTED="${DETECTED}Note: vendor missing - needs composer install\n"
-    [[ -f "pom.xml" ]] && DETECTED="${DETECTED}Found: pom.xml (Java/Maven)\n"
-
-    # For existing projects, include source file list
-    EXISTING_CODE_INFO=""
-    if [[ "$EXISTING_PROJECT" == "true" ]]; then
-        EXISTING_CODE_INFO="
+# For existing projects, include source file list
+EXISTING_CODE_INFO=""
+if [[ "$EXISTING_PROJECT" == "true" ]]; then
+    EXISTING_CODE_INFO="
 ## EXISTING SOURCE FILES (explore these to understand what's built):
 $SRC_FILES
 
@@ -127,23 +177,23 @@ This is an EXISTING project. You MUST:
 3. Document existing functionality in CONTEXT.md
 4. Create tasks that BUILD ON existing code, not duplicate it
 "
-    fi
+fi
 
-    INIT_PROMPT=$(cat "${SCRIPT_DIR}/resources/prompt_init.md")
+INIT_PROMPT=$(cat "${SCRIPT_DIR}/resources/prompt_init.md")
 
-    IDEA_CONTENT=$(cat "$IDEA_FILE")
+IDEA_CONTENT=$(cat "$IDEA_FILE")
 
-    # Read CLAUDE.md if exists
-    CLAUDE_MD=""
-    if [[ -f "CLAUDE.md" ]]; then
-        CLAUDE_MD="
+# Read CLAUDE.md if exists
+CLAUDE_MD=""
+if [[ -f "CLAUDE.md" ]]; then
+    CLAUDE_MD="
 
 ## Existing CLAUDE.md (project rules to respect):
 $(cat CLAUDE.md)
 "
-    fi
+fi
 
-    run_claude "# IDEA CONTENT:
+run_claude "# IDEA CONTENT:
 
 $IDEA_CONTENT
 
@@ -155,50 +205,49 @@ $EXISTING_CODE_INFO
 $CLAUDE_MD
 ---
 
-$INIT_PROMPT" "INIT" "false"
+$INIT_PROMPT" "INIT" "${BJARNE_CLAUDE_SESSION_IS_NEW},${BJARNE_CLAUDE_SESSION_ID}" "false"
 
-    # Verify files were created
-    if [[ -f "$CONTEXT_FILE" ]] && [[ -f "$TASK_FILE" ]]; then
-        log "SUCCESS" "Project initialized!"
-        log "INFO" "  - $CONTEXT_FILE"
-        log "INFO" "  - $TASK_FILE"
-        [[ -d "$SPECS_DIR" ]] && log "INFO" "  - $SPECS_DIR/"
+# Verify files were created
+if [[ -f "$CONTEXT_FILE" ]] && [[ -f "$TASK_FILE" ]]; then
+    log "SUCCESS" "Project initialized!"
+    log "INFO" "  - $CONTEXT_FILE"
+    log "INFO" "  - $TASK_FILE"
+    [[ -d "$SPECS_DIR" ]] && log "INFO" "  - $SPECS_DIR/"
 
-        # Init git repo if git available and not already in a repo
-        if command -v git &> /dev/null; then
-            if ! git rev-parse --git-dir &> /dev/null 2>&1; then
-                git init -q && \
-                git add -A && \
-                git commit -q -m "Initial project setup by Bjarne" && \
-                log "INFO" "  - git repo initialized" || true
-            fi
+    # Init git repo if git available and not already in a repo
+    if command -v git &> /dev/null; then
+        if ! git rev-parse --git-dir &> /dev/null 2>&1; then
+            git init -q && \
+            git add -A && \
+            git commit -q -m "Initial project setup by Bjarne" && \
+            log "INFO" "  - git repo initialized" || true
         fi
-
-        # Generate Docker config if --safe flag was used
-        if [[ "$INIT_SAFE_MODE" == true ]]; then
-            log "INFO" "Generating Docker configuration for safe mode..."
-            generate_dockerfile
-
-            # Add .bjarne to .gitignore if not already there
-            if [[ -f ".gitignore" ]]; then
-                if ! grep -q "^\.bjarne/" ".gitignore" 2>/dev/null; then
-                    log "INFO" ".bjarne/" >> ".gitignore"
-                fi
-            else
-                echo ".bjarne/" > ".gitignore"
-            fi
-            log "INFO" "  - Added .bjarne/ to .gitignore"
-
-            log "INFO" ""
-            log "SUCCESS" "Safe mode enabled!"
-            log "INFO" "Container will only have access to this project directory."
-        fi
-
-        log "INFO" ""
-        log "INFO" "Run 'bjarne' to start development"
-    else
-        log "ERROR" "Initialization incomplete - check output above"
     fi
 
-    exit 0
+    # Generate Docker config if --safe flag was used
+    if [[ "$INIT_SAFE_MODE" == true ]]; then
+        log "INFO" "Generating Docker configuration for safe mode..."
+        generate_dockerfile
+
+        # Add .bjarne to .gitignore if not already there
+        if [[ -f ".gitignore" ]]; then
+            if ! grep -q "^\.bjarne/" ".gitignore" 2>/dev/null; then
+                log "INFO" ".bjarne/" >> ".gitignore"
+            fi
+        else
+            echo ".bjarne/" > ".gitignore"
+        fi
+        log "INFO" "  - Added .bjarne/ to .gitignore"
+
+        log "INFO" ""
+        log "SUCCESS" "Safe mode enabled!"
+        log "INFO" "Container will only have access to this project directory."
+    fi
+
+    log "INFO" ""
+    log "INFO" "Run 'bjarne' to start development"
+else
+    log "ERROR" "Initialization incomplete - check output above"
 fi
+
+exit 0

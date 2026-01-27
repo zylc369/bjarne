@@ -1,6 +1,8 @@
 #!/bin/bash
 
-set -e
+# -e: 命令失败时立即退出
+# -u: 使用未定义变量时报错
+set -eu
 
 DOCKERFILE="$PROJECT_BJARNE_DIR/Dockerfile"
 

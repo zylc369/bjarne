@@ -1,6 +1,8 @@
 #!/bin/bash
 
-set -e
+# -e: 命令失败时立即退出
+# -u: 使用未定义变量时报错
+set -eu
 
 # Files
 TASK_FILE="TASKS.md"
@@ -18,11 +20,6 @@ PROJECT_BJARNE_DIR="$BJARNE_PROJECT_ROOT/.bjarne"
 MAX_RETRIES=5
 RETRY_DELAY=10
 
-# Instance-specific temp folder for verbose command output
-# Uses PID + timestamp for uniqueness across concurrent instances
-BJARNE_INSTANCE_ID="$$_$(date +%s)"
-BJARNE_TMP_DIR="/tmp/bjarne-${BJARNE_INSTANCE_ID}"
-
 #==============================================================================
 # Export variables
 export TASK_FILE
@@ -36,5 +33,3 @@ export PROJECT_BJARNE_DIR
 
 export MAX_RETRIES
 export RETRY_DELAY
-
-export BJARNE_TMP_DIR

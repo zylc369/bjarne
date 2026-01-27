@@ -33,9 +33,35 @@
 #
 # idea.md/notes.md are freeform - write whatever you want. Bjarne will figure it out.
 
-set -e
+# -e: 命令失败时立即退出
+# -u: 使用未定义变量时报错
+set -eu
 
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
+
+# Instance-specific temp folder for verbose command output
+# Uses PID + timestamp for uniqueness across concurrent instances
+BJARNE_INSTANCE_ID="$$_$(date +%s)"
+BJARNE_TMP_DIR="/tmp/bjarne-${BJARNE_INSTANCE_ID}"
+export BJARNE_TMP_DIR
+
+# 场景
+export BJARNE_EXECUTE_SCENE=""
+
+# session相关变量
+BJARNE_CLAUDE_SESSION_FILE="${PROJECT_BJARNE_DIR}/claude_session_id"
+# 检查文件是否存在且不为空
+if [[ ! -f "$BJARNE_CLAUDE_SESSION_FILE" ]] || [[ ! -s "$BJARNE_CLAUDE_SESSION_FILE" ]]; then
+    # 文件不存在或为空
+    BJARNE_CLAUDE_SESSION_IS_NEW=true
+    BJARNE_CLAUDE_SESSION_ID=$(uuidgen)
+else
+    # 文件存在且不为空
+    BJARNE_CLAUDE_SESSION_IS_NEW=false
+    # 读取文件内容到变量，去除首尾空白字符
+    BJARNE_CLAUDE_SESSION_ID=$(<"$BJARNE_CLAUDE_SESSION_FILE")
+    # 或者使用 cat: BJARNE_CLAUDE_SESSION_ID=$(cat "$BJARNE_CLAUDE_SESSION_FILE")
+fi
 
 # Source library components
 source "$SCRIPT_DIR/lib/consts.sh"
@@ -49,6 +75,8 @@ echo "BJARNE_HOME=$BJARNE_HOME"
 echo "BJARNE_PROJECT_ROOT=$BJARNE_PROJECT_ROOT"
 echo "LOG_DIR=$LOG_DIR"
 echo "LOG_FILE=$LOG_FILE"
+log "INFO" "BJARNE_CLAUDE_SESSION_IS_NEW=$BJARNE_CLAUDE_SESSION_IS_NEW"
+log "INFO" "BJARNE_CLAUDE_SESSION_ID=$BJARNE_CLAUDE_SESSION_ID"
 
 # Instance-specific temp folder for verbose command output
 mkdir -p "$BJARNE_TMP_DIR"
@@ -113,11 +141,20 @@ log_failure() {
 # Safe mode (Docker) settings
 SAFE_MODE=false
 
+INNER_RUN_CLAUDE_FIRST_RUN=true
 inner_run_claude() {
     local user_prompt="$1"
     local phase="$2"
+    local session_obj=""
 
-    run_claude "$user_prompt" "$phase" "$SAFE_MODE"
+    if [[ "$INNER_RUN_CLAUDE_FIRST_RUN" == "true" ]]; then
+        session_obj="${BJARNE_CLAUDE_SESSION_IS_NEW},${BJARNE_CLAUDE_SESSION_ID}"
+        INNER_RUN_CLAUDE_FIRST_RUN=false
+    else
+        session_obj="false,${BJARNE_CLAUDE_SESSION_ID}"
+    fi
+
+    run_claude "$user_prompt" "$phase" "$session_obj" "$SAFE_MODE"
 }
 
 #==============================================================================
