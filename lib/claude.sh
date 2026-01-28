@@ -124,7 +124,7 @@ $(get_verbose_output_rules $BJARNE_TMP_DIR)"
             log "ERROR" "  Claude failed (attempt $attempt/$MAX_RETRIES, exit code $exit_code)"
             log "ERROR" "  Error: 'only prompt commands are supported in streaming mode'"
         else
-            log "ERROR" "  Claude failed (attempt $attempt/$MAX_RETRIES, exit code $exit_code)"
+            log "ERROR" "  Claude failed (attempt $attempt/$MAX_RETRIES, exit code $exit_code, output=${output:0:350}...)"
         fi
 
         # Log failure details including the actual prompt
@@ -152,7 +152,7 @@ $(get_verbose_output_rules $BJARNE_TMP_DIR)"
         log_ai_response "ERROR" "$request_id" "$(printf "%s\n" "${claude_failure_msg_array[@]}")"
 
         if [[ $attempt -lt $MAX_RETRIES ]]; then
-            log "ERROR" "  Retrying in ${RETRY_DELAY}s..."
+            log "Error" "[run_claude] $phase phase failed on attempt $attempt, will retry in ${RETRY_DELAY}s..."
             sleep $RETRY_DELAY
         fi
 

@@ -77,7 +77,7 @@ $msg
 =========================
 "
     inner_log "INFO" "$new_msg" "$LOG_FILE_AI_PARAM_RESP" "false"
-    log "INFO" "=== Logged AI PARAM [request_id=$request_id] ==="
+    log "INFO" "=== AI PARAM [request_id=$request_id] ==="
 }
 
 log_ai_response() {
@@ -89,7 +89,7 @@ $msg
 =========================
 "
     inner_log "$level" "$new_msg" "$LOG_FILE_AI_PARAM_RESP" "false"
-    log "INFO" "=== Logged AI RESPONSE [request_id=$request_id] ==="
+    log "$level" "=== AI RESPONSE [request_id=$request_id] ==="
 }
 
 #==============================================================================
