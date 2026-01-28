@@ -11,12 +11,15 @@ set -eu
 # Run claude with retry logic (safe mode aware)
 # Usage: run_claude "prompt" "PHASE_NAME"
 run_claude() {
-    local user_prompt="$1"
-    local phase="${2:-UNKNOWN}"
-    local session_obj="${3:-}"  # format: "session_is_new,session_id"
-    local session_is_new=""
-    local session_id=""
-    local save_mode="${4:-false}"
+    local -n params_ref=$1  # 使用 nameref
+    
+    # 设置默认值
+    local user_prompt="${params_ref[user_prompt]:-}"
+    local phase="${params_ref[phase]:-UNKNOWN}"
+    local session_is_new="${params_ref[session_is_new]:-false}"
+    local session_id="${params_ref[session_id]:-}"
+    local save_mode="${params_ref[save_mode]:-false}"
+    local loop_count="${params_ref[loop_count]:-}"
 
     if [[ -n "$session_obj" ]]; then
         IFS=',' read -r session_is_new session_id <<< "$session_obj"
@@ -60,7 +63,7 @@ $(get_verbose_output_rules $BJARNE_TMP_DIR)"
     while [[ $attempt -le $MAX_RETRIES ]]; do
         log "INFO" "[run_claude] Attempt $attempt for $phase phase"
 
-        local request_id="${session_id}#${attempt}"
+        local request_id="${session_id}#${phase}#${loop_count}#${attempt}"
         log_ai_param "$request_id" "$(printf "%s\n" "${claude_args[@]}")"
 
         if [[ "$save_mode" == true ]]; then

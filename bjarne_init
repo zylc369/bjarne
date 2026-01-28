@@ -194,7 +194,7 @@ $(cat CLAUDE.md)
 "
 fi
 
-run_claude "# IDEA CONTENT:
+user_prompt="# IDEA CONTENT:
 
 $IDEA_CONTENT
 
@@ -206,7 +206,15 @@ $EXISTING_CODE_INFO
 $CLAUDE_MD
 ---
 
-$INIT_PROMPT" "INIT" "${BJARNE_CLAUDE_SESSION_IS_NEW},${BJARNE_CLAUDE_SESSION_ID}" "false"
+$INIT_PROMPT"
+
+declare -A claude_params
+claude_params[user_prompt]="$user_prompt"
+claude_params[phase]="INIT"
+claude_params[session_is_new]="$BJARNE_CLAUDE_SESSION_IS_NEW"
+claude_params[session_id]="$BJARNE_CLAUDE_SESSION_ID"
+claude_params[save_mode]="false"
+run_claude claude_params
 
 # Verify files were created
 if [[ -f "$CONTEXT_FILE" ]] && [[ -f "$TASK_FILE" ]]; then
