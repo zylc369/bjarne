@@ -69,7 +69,7 @@ source "$SCRIPT_DIR/lib/prompts.sh"
 source "$SCRIPT_DIR/lib/safe_mode.sh"
 source "$SCRIPT_DIR/lib/claude.sh"
 
-log "INFO" "🚀 Starting Bjarne script..."
+log "LIGHT" "🚀 Starting Bjarne script..."
 log "INFO" "BJARNE_EXECUTE_SCENE=$BJARNE_EXECUTE_SCENE"
 log "INFO" "SCRIPT_DIR=$SCRIPT_DIR"
 log "INFO" "BJARNE_HOME=$BJARNE_HOME"
@@ -736,7 +736,7 @@ fi
 #==============================================================================
 
 # Parse main loop arguments
-MAX_ITERATIONS=25
+MAX_ITERATIONS=
 BATCH_MODE=false
 BATCH_SIZE=5
 
@@ -791,6 +791,20 @@ if [[ ! -f "$TASK_FILE" ]]; then
     log "ERROR" "Error: $TASK_FILE not found"
     log "INFO" "Run 'bjarne init <idea.md>' first"
     exit 1
+fi
+
+# Determine max iterations if not set
+if [ -z "$MAX_ITERATIONS" ]; then
+    # 根据任务数量动态设置最大迭代次数
+    REMAINING=$(grep -c '^\s*- \[ \]' "$TASK_FILE" || echo "0")
+    if [ "$REMAINING" -eq 0 ]; then
+        MAX_ITERATIONS=1
+        # 循环里面还会判断剩余任务，这里设置1保证能进入循环一次以打印完成信息
+        log "WARN" "No remaining tasks - setting MAX_ITERATIONS to $MAX_ITERATIONS"
+    else
+        MAX_ITERATIONS=$((REMAINING * 2))
+        log "LIGHT" "MAX_ITERATIONS not set - defaulting to $MAX_ITERATIONS (2x remaining tasks: $REMAINING)"
+    fi
 fi
 
 if [[ ! -f "$CONTEXT_FILE" ]]; then
