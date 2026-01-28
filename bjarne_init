@@ -208,13 +208,11 @@ $CLAUDE_MD
 
 $INIT_PROMPT"
 
-declare -A claude_params
-claude_params[user_prompt]="$user_prompt"
-claude_params[phase]="INIT"
-claude_params[session_is_new]="$BJARNE_CLAUDE_SESSION_IS_NEW"
-claude_params[session_id]="$BJARNE_CLAUDE_SESSION_ID"
-claude_params[save_mode]="false"
-run_claude claude_params
+run_claude "user_prompt" "$user_prompt" \
+    "phase" "INIT" \
+    "session_is_new" "$BJARNE_CLAUDE_SESSION_IS_NEW" \
+    "session_id" "$BJARNE_CLAUDE_SESSION_ID" \
+    "save_mode" "false"
 
 # Verify files were created
 if [[ -f "$CONTEXT_FILE" ]] && [[ -f "$TASK_FILE" ]]; then

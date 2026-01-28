@@ -37,16 +37,28 @@ run_claude() {
     local -n params_ref=$1  # 使用 nameref
     
     # 设置默认值
-    local user_prompt="${params_ref[user_prompt]:-}"
-    local phase="${params_ref[phase]:-UNKNOWN}"
-    local session_is_new="${params_ref[session_is_new]:-false}"
-    local session_id="${params_ref[session_id]:-}"
-    local save_mode="${params_ref[save_mode]:-false}"
-    local loop_count="${params_ref[loop_count]:-}"
+    local user_prompt=""
+    local phase="UNKNOWN"
+    local session_is_new="false"
+    local session_id=""
+    local save_mode="false"
+    local loop_count=""
 
-    if [[ -n "$session_obj" ]]; then
-        IFS=',' read -r session_is_new session_id <<< "$session_obj"
-    fi
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            "user_prompt")       user_prompt="$2"; shift 2 ;;
+            "phase")             phase="$2"; shift 2 ;;
+            "session_is_new")    session_is_new="$2"; shift 2 ;;
+            "session_id")        session_id="$2"; shift 2 ;;
+            "save_mode")         save_mode="$2"; shift 2 ;;
+            "loop_count")        loop_count="$2"; shift 2 ;;
+            *)
+                log "ERROR" "Warning: unknown parameter '$1'" >&2
+                shift 2
+                return 1
+                ;;
+        esac
+    done
 
     # 检查 claude 命令是否可用
     if ! command -v claude &>/dev/null; then

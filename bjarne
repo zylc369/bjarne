@@ -123,15 +123,12 @@ inner_run_claude() {
         session_is_new="false"
     fi
 
-    # 调用方式
-    declare -A claude_params
-    claude_params[user_prompt]="$user_prompt"
-    claude_params[phase]="$phase"
-    claude_params[session_is_new]="$session_is_new"
-    claude_params[session_id]="$session_id"
-    claude_params[save_mode]="$SAFE_MODE"
-    claude_params[loop_count]="$loop_count"
-    run_claude claude_params
+    run_claude "user_prompt" "$user_prompt" \
+        "phase" "$phase" \
+        "session_is_new" "$session_is_new" \
+        "session_id" "$session_id" \
+        "save_mode" "$SAFE_MODE" \
+        "loop_count" "$loop_count"
 }
 
 #==============================================================================
