@@ -4,6 +4,29 @@
 # -u: 使用未定义变量时报错
 set -eu
 
+# 根据错误输出不同的信息
+inner_log_with_error_output() {
+    local phase="$1"
+    local attempt="$2"
+    local exit_code="$3"
+    local output="$4"
+
+    # Check for the specific streaming error
+    if echo "$output" | grep -q "only prompt commands are supported in streaming mode"; then
+        log "ERROR" "❌ [$phase] Claude failed, streaming mode error on attempt $attempt/$MAX_RETRIES (exit: $exit_code, output=${output:0:200}...)"
+        return 3  # Special return code for streaming mode error
+    fi
+
+    # Check if the failure is due to API 5-hour limit
+    if grep -qi "5.*hour.*limit\|limit.*reached.*try.*back\|usage.*limit.*reached\|小时*使用上限" "$output_file"; then
+        log_status "ERROR" "🚫 Claude API 5-hour usage limit reached"
+        return 2  # Special return code for API limit
+    fi
+
+    log "ERROR" "❌ [$phase] Claude failed (attempt $attempt/$MAX_RETRIES, exit code $exit_code, output=${output:0:200}...)"
+    return 1
+}
+
 #==============================================================================
 # CLAUDE RUN FUNCTION WITH RETRIES
 #==============================================================================
@@ -118,14 +141,10 @@ $(get_verbose_output_rules $BJARNE_TMP_DIR)"
             return 0
         fi
 
-        # Check for the specific streaming error
-        if echo "$output" | grep -q "only prompt commands are supported in streaming mode"; then
-            log "ERROR" "$phase: Got 'streaming mode' error (attempt $attempt)"
-            log "ERROR" "  Claude failed (attempt $attempt/$MAX_RETRIES, exit code $exit_code)"
-            log "ERROR" "  Error: 'only prompt commands are supported in streaming mode'"
-        else
-            log "ERROR" "  Claude failed (attempt $attempt/$MAX_RETRIES, exit code $exit_code, output=${output:0:350}...)"
-        fi
+        #------------------------------------------------------------
+        # 打印错误信息
+
+        inner_log_with_error_output "$phase" "$attempt" "$exit_code" "$output"
 
         # Log failure details including the actual prompt
         claude_failure_msg_array=("=== BJARNE FAILURE LOG ===")
@@ -141,15 +160,13 @@ $(get_verbose_output_rules $BJARNE_TMP_DIR)"
         claude_failure_msg_array+=("")
         claude_failure_msg_array+=("=== CURRENT .task FILE (if exists) ===")
         if [[ -f "$TASK_STATE" ]]; then
-            if content=$(cat "$TASK_STATE" 2>/dev/null); then
-                claude_failure_msg_array+=("$content")
-            else
-                claude_failure_msg_array+=("读取TASK_STATE文件失败")
-            fi
+            claude_failure_msg_array+=("Path: $TASK_STATE")
         else
             claude_failure_msg_array+=("(no .task file)")
         fi
         log_ai_response "ERROR" "$request_id" "$(printf "%s\n" "${claude_failure_msg_array[@]}")"
+
+        #------------------------------------------------------------
 
         if [[ $attempt -lt $MAX_RETRIES ]]; then
             log "Error" "[run_claude] $phase phase failed on attempt $attempt, will retry in ${RETRY_DELAY}s..."
