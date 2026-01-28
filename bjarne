@@ -47,6 +47,9 @@ export BJARNE_TMP_DIR
 # 场景
 export BJARNE_EXECUTE_SCENE=""
 
+# Source library components
+source "$SCRIPT_DIR/lib/consts.sh"
+
 # session相关变量
 BJARNE_CLAUDE_SESSION_FILE="${PROJECT_BJARNE_DIR}/claude_session_id"
 # 检查文件是否存在且不为空
@@ -63,7 +66,6 @@ else
 fi
 
 # Source library components
-source "$SCRIPT_DIR/lib/consts.sh"
 source "$SCRIPT_DIR/lib/log.sh"
 source "$SCRIPT_DIR/lib/prompts.sh"
 source "$SCRIPT_DIR/lib/safe_mode.sh"
@@ -167,7 +169,7 @@ generate_task_id() {
 #==============================================================================
 # REBUILD COMMAND - Force rebuild Docker image
 #==============================================================================
-if [[ "$1" == "--rebuild" ]]; then
+if [[ "${1:-}" == "--rebuild" ]]; then
     SAFE_MODE=$(detect_safe_mode)
 
     if [[ "$SAFE_MODE" != true ]]; then
@@ -184,7 +186,7 @@ fi
 #==============================================================================
 # REFRESH COMMAND - Add tasks from freeform notes
 #==============================================================================
-if [[ "$1" == "refresh" ]]; then
+if [[ "${1:-}" == "refresh" ]]; then
     NOTES_FILE="$2"
 
     if [[ -z "$NOTES_FILE" ]]; then
@@ -256,7 +258,7 @@ fi
 #==============================================================================
 # TASK COMMAND - Isolated single-task mode
 #==============================================================================
-if [[ "$1" == "task" ]]; then
+if [[ "${1:-}" == "task" ]]; then
     shift  # Remove "task" from args
 
     # Parse task command arguments
@@ -741,7 +743,7 @@ BATCH_MODE=false
 BATCH_SIZE=5
 
 while [[ $# -gt 0 ]]; do
-    case "$1" in
+    case "${1:-}" in
         --batch=*)
             # --batch=N syntax: batch mode with custom size
             BATCH_MODE=true

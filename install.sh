@@ -3,6 +3,7 @@
 set -e
 
 echo "🚀 Installing Bjarne..."
+echo ""
 
 # 设置安装目录
 BJARNE_HOME="$HOME/.bjarne"
@@ -28,7 +29,9 @@ copy_to_home() {
 
     # 复制 lib 和 resources 目录（保留结构）
     cp -r "$SCRIPT_DIR/lib" "$BJARNE_HOME/"
+    echo "Copied lib directory to $BJARNE_HOME/lib/"
     cp -r "$SCRIPT_DIR/resources" "$BJARNE_HOME/"
+    echo "Copied resources directory to $BJARNE_HOME/resources/"
 
     # 确保脚本有执行权限
     # chmod +x "$BJARNE_HOME/bjarne" "$BJARNE_HOME/bjarne_init"

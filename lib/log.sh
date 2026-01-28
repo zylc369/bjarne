@@ -33,7 +33,6 @@ inner_log() {
     local output_to_terminal="${4:-true}"
 
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    local log_content="[$timestamp] [$level] $msg"
     local color=""
     
     case $level in
@@ -54,6 +53,8 @@ inner_log() {
             level="INFO"
             ;;
     esac
+
+    local log_content="[$timestamp] [$level] $msg"
 
     if [[ "$output_to_terminal" == "true" ]]; then
         echo -e "${color}${log_content}${NC}"
