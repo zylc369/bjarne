@@ -2,8 +2,15 @@
 
 set -e
 
-echo "🚀 Installing Bjarne..."
-echo ""
+log() {
+    local msg="$1"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local log_content="[$timestamp] $msg"
+    echo "$log_content"
+}
+
+log "🚀 Installing Bjarne..."
+log ""
 
 # 设置安装目录
 BJARNE_HOME="$HOME/.bjarne"
@@ -15,7 +22,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # 检查必要文件是否存在
 if [[ ! -f "$SCRIPT_DIR/bjarne" ]] || [[ ! -f "$SCRIPT_DIR/bjarne_init" ]] || \
    [[ ! -d "$SCRIPT_DIR/lib" ]] || [[ ! -d "$SCRIPT_DIR/resources" ]]; then
-    echo "错误：当前目录缺少必要的文件或目录（bjarne, bjarne_init, lib, resources）"
+    log "错误：当前目录缺少必要的文件或目录（bjarne, bjarne_init, lib, resources）"
     exit 1
 fi
 
@@ -29,16 +36,16 @@ copy_to_home() {
 
     # 复制 lib 和 resources 目录（保留结构）
     cp -r "$SCRIPT_DIR/lib" "$BJARNE_HOME/"
-    echo "Copied lib directory to $BJARNE_HOME/lib/"
+    log "Copied lib directory to $BJARNE_HOME/lib/"
     cp -r "$SCRIPT_DIR/resources" "$BJARNE_HOME/"
-    echo "Copied resources directory to $BJARNE_HOME/resources/"
+    log "Copied resources directory to $BJARNE_HOME/resources/"
 
     # 确保脚本有执行权限
     # chmod +x "$BJARNE_HOME/bjarne" "$BJARNE_HOME/bjarne_init"
 }
 
 install() {
-    echo ""
+    log ""
 
     mkdir -p "$BJARNE_BIN_DIR"
 
@@ -51,7 +58,7 @@ BJARNE_HOME="$HOME/.bjarne"
 exec "$BJARNE_HOME/bjarne" "$@"
 EOF
     chmod a+x "$BJARNE_BIN_DIR/bjarne"
-    echo "Installed bjarne command to $BJARNE_BIN_DIR/bjarne"
+    log "Installed bjarne command to $BJARNE_BIN_DIR/bjarne"
 
     # Create bjarne-init command
     cat > "$BJARNE_BIN_DIR/bjarne-init" << 'EOF'
@@ -63,18 +70,18 @@ BJARNE_HOME="$HOME/.bjarne"
 exec "$BJARNE_HOME/bjarne_init" "$@"
 EOF
     chmod a+x "$BJARNE_BIN_DIR/bjarne-init"
-    echo "Installed bjarne-init command to $BJARNE_BIN_DIR/bjarne-init"
+    log "Installed bjarne-init command to $BJARNE_BIN_DIR/bjarne-init"
 
-    echo ""
+    log ""
 }
 
 copy_to_home
 install
 
 # 提示用户添加 PATH
-echo "✅ 安装成功！"
-echo "请将以下行添加到你的 shell 配置文件中（如 ~/.bashrc、~/.zshrc 等）："
-echo ""
-echo "    export PATH=\"\$PATH:$BJARNE_BIN_DIR\""
-echo ""
-echo "然后运行：source ~/.bashrc（或对应配置文件）以生效。"
+log "✅ 安装成功！"
+log "请将以下行添加到你的 shell 配置文件中（如 ~/.bashrc、~/.zshrc 等）："
+log ""
+log "    export PATH=\"\$PATH:$BJARNE_BIN_DIR\""
+log ""
+log "然后运行：source ~/.bashrc（或对应配置文件）以生效。"

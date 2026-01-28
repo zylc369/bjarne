@@ -5,6 +5,11 @@
 set -eu
 
 # 根据错误输出不同的信息
+# 返回值:
+# 0: 无错误
+# 1: 一般错误
+# 2: API 5小时使用上限错误
+# 3: 流式模式错误
 inner_log_with_error_output() {
     local phase="$1"
     local attempt="$2"
@@ -12,18 +17,18 @@ inner_log_with_error_output() {
     local output="$4"
 
     # Check for the specific streaming error
-    if echo "$output" | grep -q "only prompt commands are supported in streaming mode"; then
-        log "ERROR" "❌ [$phase] Claude failed, streaming mode error on attempt $attempt/$MAX_RETRIES (exit: $exit_code, output=${output:0:200}...)"
+    if echo "$output" | grep -qi "only prompt commands are supported in streaming mode"; then
+        log "ERROR" "❌ [$phase] Claude failed, streaming mode error on attempt $attempt/$MAX_RETRIES (exit: $exit_code, output=${output:0:200}...), detail logged in $LOG_FILE_AI_PARAM_RESP"
         return 3  # Special return code for streaming mode error
     fi
 
-    # Check if the failure is due to API 5-hour limit
-    if grep -qi "5.*hour.*limit\|limit.*reached.*try.*back\|usage.*limit.*reached\|小时*使用上限" "$output_file"; then
-        log_status "ERROR" "🚫 Claude API 5-hour usage limit reached"
+    # Check if the failure is due to API X-hour limit
+    if echo "$output" | grep -qi "5.*hour.*limit\|limit.*reached.*try.*back\|usage.*limit.*reached\|小时.*使用上限"; then
+        log "ERROR" "🚫 Claude API X-hour usage limit reached, output=${output:0:200}...), detail logged in $LOG_FILE_AI_PARAM_RESP"
         return 2  # Special return code for API limit
     fi
 
-    log "ERROR" "❌ [$phase] Claude failed (attempt $attempt/$MAX_RETRIES, exit code $exit_code, output=${output:0:200}...)"
+    log "ERROR" "❌ [$phase] Claude failed (attempt $attempt/$MAX_RETRIES, exit code $exit_code, output=${output:0:200}...), detail logged in $LOG_FILE_AI_PARAM_RESP"
     return 1
 }
 
@@ -33,9 +38,7 @@ inner_log_with_error_output() {
 
 # Run claude with retry logic (safe mode aware)
 # Usage: run_claude "prompt" "PHASE_NAME"
-run_claude() {
-    local -n params_ref=$1  # 使用 nameref
-    
+run_claude() {    
     # 设置默认值
     local user_prompt=""
     local phase="UNKNOWN"
@@ -132,9 +135,14 @@ $(get_verbose_output_rules $BJARNE_TMP_DIR)"
                 claude "${claude_args[@]}" 2>&1)
             exit_code=$?
         else
-             # 临时设置错误处理
-            local old_trap=$(trap -p ERR)
+            # 保存原有的ERR和INT信号处理
+            local old_trap_err=$(trap -p ERR)
+            local old_trap_int=$(trap -p INT)
+
+            # 设置错误处理
             trap 'echo "在文件 claude.sh 中出错: 第 $LINENO 行，状态: $?" >&2' ERR
+            # 设置Ctrl+C处理
+            trap 'echo -e "\n检测到Ctrl+C，正在终止..." >&2; exit 130' INT
 
             # Run on host (existing behavior), capture output
             # -p: 打印响应并退出（适用于管道操作）。注意：当Claude以-p模式运行时，会跳过工作区信任对话框。请仅在受信任的目录中使用此标志。
@@ -142,8 +150,9 @@ $(get_verbose_output_rules $BJARNE_TMP_DIR)"
             output=$(claude "${claude_args[@]}" 2>&1)
             exit_code=$?
 
-            # 恢复之前的 trap
-            eval "$old_trap"
+            # 恢复之前的trap
+            eval "$old_trap_err"
+            eval "$old_trap_int"
         fi
 
         if [[ $exit_code -eq 0 ]]; then
@@ -157,6 +166,14 @@ $(get_verbose_output_rules $BJARNE_TMP_DIR)"
         # 打印错误信息
 
         inner_log_with_error_output "$phase" "$attempt" "$exit_code" "$output"
+        local error_type=$?
+        if [[ $error_type -eq 2 ]]; then
+            # API X-hour limit reached, no point retrying
+            return 2
+        elif [[ $error_type -eq 3 ]]; then
+            # Streaming mode error, no point retrying
+            return 3
+        fi
 
         # Log failure details including the actual prompt
         claude_failure_msg_array=("=== BJARNE FAILURE LOG ===")

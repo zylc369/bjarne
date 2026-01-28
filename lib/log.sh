@@ -7,7 +7,8 @@ set -eu
 # Colors
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
+# BLUE='\033[0;34m'
+BLUE='\033[94m'
 RED='\033[0;31m'
 CYAN='\033[0;36m'
 NC='\033[0m'
@@ -103,6 +104,8 @@ export NC
 
 export LOG_DIR
 export LOG_FILE
+
+export LOG_FILE_AI_PARAM_RESP
 
 #==============================================================================
 # Export functions
