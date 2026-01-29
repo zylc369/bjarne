@@ -131,7 +131,7 @@ $(get_verbose_output_rules $BJARNE_TMP_DIR)"
             # Capture both stdout and stderr
             # Run as host user's UID/GID so mounted files have correct permissions
             output=$(docker run --rm --user "$(id -u):$(id -g)" -e HOME=/home/bjarne \
-                $docker_args -w /workspace "$IMAGE_NAME" \
+                $docker_args -w /workspace "$SAFE_MODE_IMAGE_NAME" \
                 claude "${claude_args[@]}" 2>&1)
             exit_code=$?
         else

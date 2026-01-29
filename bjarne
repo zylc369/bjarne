@@ -188,7 +188,7 @@ if [[ "${1:-}" == "--rebuild" ]]; then
     SAFE_MODE=$(detect_safe_mode)
 
     if [[ "$SAFE_MODE" != true ]]; then
-        log "ERROR" "Error: Not a safe mode project (no $DOCKERFILE found)"
+        log "ERROR" "Error: Not a safe mode project (no $SAFE_MODE_DOCKERFILE found)"
         log "ERROR" "Run 'bjarne init --safe <idea.md>' to enable safe mode"
         exit 1
     fi
@@ -434,7 +434,7 @@ if [[ "${1:-}" == "task" ]]; then
 
     # Handle safe mode for task
     if [[ "$TASK_SAFE_MODE" == true ]]; then
-        if [[ ! -f "$DOCKERFILE" ]]; then
+        if [[ ! -f "$SAFE_MODE_DOCKERFILE" ]]; then
             echo -e "${CYAN}Generating Docker configuration for safe mode...${NC}"
             generate_dockerfile
         fi
