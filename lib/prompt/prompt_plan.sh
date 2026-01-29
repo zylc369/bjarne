@@ -62,7 +62,7 @@ OUTCOME_VERIFICATION:
 - Match existing code style
 
 ## Directory and File Path
-- Working directory: \`$BJARNE_PROJECT_ROOT\`
+- Working directory: \`$BJARNE_PROJECT_ROOT\`. All relative paths are based here.
 
 DO NOT implement unless explicitly asked. Just plan.
 EOF

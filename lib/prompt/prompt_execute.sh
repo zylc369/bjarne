@@ -42,7 +42,7 @@ Only add a note if it would help future tasks (e.g., "used X instead of Y", "req
 Then commit: "feat: [task description]"
 
 ## Directory and File Path
-- Working directory: \`$BJARNE_PROJECT_ROOT\`
+- Working directory: \`$BJARNE_PROJECT_ROOT\`. All relative paths are based here.
 EOF
     
     echo "$prompt_content"

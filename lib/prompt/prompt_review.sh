@@ -135,7 +135,7 @@ ISSUES: none
 \`\`\`
 
 ## Directory and File Path
-- Working directory: \`$BJARNE_PROJECT_ROOT\`
+- Working directory: \`$BJARNE_PROJECT_ROOT\`. All relative paths are based here.
 EOF
     
     echo "$prompt_content"
