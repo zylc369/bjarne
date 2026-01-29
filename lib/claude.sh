@@ -46,6 +46,7 @@ run_claude() {
     local session_id=""
     local save_mode="false"
     local loop_count=""
+    local disable_verbose_output_rules_prompt="false"
 
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -55,6 +56,10 @@ run_claude() {
             "session_id")        session_id="$2"; shift 2 ;;
             "save_mode")         save_mode="$2"; shift 2 ;;
             "loop_count")        loop_count="$2"; shift 2 ;;
+            "disable_verbose_output_rules_prompt")
+                disable_verbose_output_rules_prompt="true"
+                shift 1
+                ;;
             *)
                 log "ERROR" "Warning: unknown parameter '$1'" >&2
                 shift 2
@@ -77,9 +82,12 @@ run_claude() {
 
     #----------------------------------------------------------------------------
     # APPEND verbose output rules to ALL prompts (at end = more prominent)
-    local prompt="$user_prompt
+    local prompt="$user_prompt"
+    if [[ "$disable_verbose_output_rules_prompt" != "true" ]]; then
+        prompt="${prompt}
 
-$(get_verbose_output_rules $BJARNE_TMP_DIR)"
+$(get_verbose_output_rules "$BJARNE_TMP_DIR")"
+    fi
     #----------------------------------------------------------------------------
 
     local prompt_size=${#prompt}

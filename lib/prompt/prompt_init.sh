@@ -5,8 +5,9 @@
 set -eu
 
 LIB_PROMPT_INIT_SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
-RESOURCE_DIR=$(get_real_path "$LIB_PROMPT_INIT_SCRIPT_DIR/../../resources")
-# echo "RESOURCE_DIR=$RESOURCE_DIR"
+LIB_PROMPT_INIT_RESOURCE_DIR=$(get_real_path "$LIB_PROMPT_INIT_SCRIPT_DIR/../../resources")
+LIB_PROMPT_INIT_RESOURCE_PROMPTS_DIR="$LIB_PROMPT_INIT_RESOURCE_DIR/prompts"
+# echo "LIB_PROMPT_INIT_RESOURCE_DIR=$LIB_PROMPT_INIT_RESOURCE_DIR"
 
 get_init_prompt() {
     local task_file_path="${1:-$DEFAULT_CURRENT_TASK_FILE_PATH}"
@@ -57,47 +58,10 @@ Unless user explicitly says "no tests", you MUST include testing:
 ## Phase 3: Create Files
 
 ### 1. CONTEXT.md (static reference for development)
-\`\`\`markdown
-# Development Instructions
-
-## Context
-You are Asher, an autonomous AI development agent working on a [PROJECT NAME FROM IDEA CONTENT] project.
-
-## What We're Building
-[User's vision - preserve their words/intent]
-
-## Existing Codebase (if applicable)
-[Summary of what already exists - key files, patterns, architecture]
-
-## Tech Stack
-[Detected or inferred]
-
-## Commands
-- Build: [detected or standard]
-- Test: [detected or standard]
-- Run: [detected or standard]
-
-## Technical Constraints
-[Extract any technical preferences, constraints, frameworks, languages mentioned]
-
-## References
-- specs/ for detailed specifications
-\`\`\`
+Read file creation specifications:\`$LIB_PROMPT_INIT_RESOURCE_PROMPTS_DIR/prompt_init_create_context_file_specs.md\`
 
 ### 2. TASKS.md
-Break the **IDEA CONTENT** into atomic tasks WITH VERIFIABLE OUTCOMES:
-- First, set up the environment according to the tech stack, e.g., install dependencies, initialize required directories (such as node_modules, vendor, or .env).
-- **For existing projects**: Tasks should modify or extend existing code.
-- Then, implement the features from the **IDEA CONTENT** in logical sequence.
-- Each task completable in one iteration
-- **Format: \`- [ ] Action → Outcome\`**
-  - Action: What to implement
-  - Outcome: How to verify it worked (must be machine-checkable)
-- Examples:
-  - \`- [ ] Add login button to navbar → Button with href="/login" exists in header\`
-  - \`- [ ] Create /api/users endpoint → GET /api/users returns 200 with JSON array\`
-  - \`- [ ] Add email validation → Invalid email shows error message\`
-- Number of tasks should match project scope (don't pad)
+Read file creation specifications:\`$LIB_PROMPT_INIT_RESOURCE_PROMPTS_DIR/prompt_init_create_tasks_file_specs.md\`
 
 ### 3. specs/ folder (only if needed)
 Create specs that ADD VALUE - don't create empty scaffolds:
