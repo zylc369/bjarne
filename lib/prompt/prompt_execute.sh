@@ -5,7 +5,6 @@
 set -eu
 
 get_execute_prompt() {
-    local task_file_path="${1:-$DEFAULT_CURRENT_TASK_FILE_PATH}"
     read -r -d '' prompt_content << EOF
 # EXECUTE STEP
 
@@ -15,8 +14,6 @@ get_execute_prompt() {
 - Be direct and factual - no conversational language needed
 
 Read .task file. Follow the plan exactly.
-
-.task file path: $task_file_path
 
 **Your primary job is IMPLEMENTATION - use Write and Edit tools to create/modify files.**
 The PLAN phase already researched the codebase. Trust the plan's EXISTING_CODE and PATTERNS.
@@ -45,7 +42,8 @@ Only add a note if it would help future tasks (e.g., "used X instead of Y", "req
 Then commit: "feat: [task description]"
 
 ## Directory and File Path
-- Working directory: $BJARNE_PROJECT_ROOT
+- Working directory: \`$BJARNE_PROJECT_ROOT\`
+- .task → In working directory
 EOF
     
     echo "$prompt_content"

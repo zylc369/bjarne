@@ -5,7 +5,6 @@
 set -eu
 
 get_plan_prompt() {
-    local task_file_path="${1:-$DEFAULT_CURRENT_TASK_FILE_PATH}"
     read -r -d '' prompt_content << EOF
 # PLAN STEP
 
@@ -63,8 +62,8 @@ OUTCOME_VERIFICATION:
 - Match existing code style
 
 ## Directory and File Path
-- Working directory: $BJARNE_PROJECT_ROOT
-- .task → $task_file_path
+- Working directory: \`$BJARNE_PROJECT_ROOT\`
+- .task → In working directory
 
 DO NOT implement unless explicitly asked. Just plan.
 EOF

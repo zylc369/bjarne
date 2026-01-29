@@ -5,7 +5,6 @@
 set -eu
 
 get_fix_prompt() {
-local task_file_path="${1:-$DEFAULT_CURRENT_TASK_FILE_PATH}"
     read -r -d '' prompt_content << EOF
 # FIX STEP
 
@@ -112,8 +111,8 @@ If TRUE code blocker (rare - only security/data issues with no fix):
 - Keep .task file for context
 
 ## Directory and File Path
-- Working directory: $BJARNE_PROJECT_ROOT
-- .task → $task_file_path
+- Working directory: \`$BJARNE_PROJECT_ROOT\`
+- .task → In working directory
 EOF
     
     echo "$prompt_content"
