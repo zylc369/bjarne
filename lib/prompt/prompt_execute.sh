@@ -1,3 +1,12 @@
+#!/bin/bash
+
+# -e: 命令失败时立即退出
+# -u: 使用未定义变量时报错
+set -eu
+
+get_execute_prompt() {
+    local task_file_path="${1:-$DEFAULT_CURRENT_TASK_FILE_PATH}"
+    read -r -d '' prompt_content << EOF
 # EXECUTE STEP
 
 **IMPORTANT: This is step 2 of 4 in an automated pipeline (PLAN → EXECUTE → REVIEW → FIX).**
@@ -6,6 +15,8 @@
 - Be direct and factual - no conversational language needed
 
 Read .task file. Follow the plan exactly.
+
+.task file path: $task_file_path
 
 **Your primary job is IMPLEMENTATION - use Write and Edit tools to create/modify files.**
 The PLAN phase already researched the codebase. Trust the plan's EXISTING_CODE and PATTERNS.
@@ -26,9 +37,15 @@ You may read files when needed for implementation, but prioritize writing code o
 
 ## When Done
 Mark the task complete in TASKS.md with a short note if you learned something useful:
-- Simple completion: `- [x] Task description`
-- With note: `- [x] Task description → Note: [one-line insight]`
+- Simple completion: \`- [x] Task description\`
+- With note: \`- [x] Task description → Note: [one-line insight]\`
 
 Only add a note if it would help future tasks (e.g., "used X instead of Y", "requires Z first").
 
 Then commit: "feat: [task description]"
+EOF
+    
+    echo "$prompt_content"
+}
+
+export -f get_execute_prompt

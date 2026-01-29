@@ -8,6 +8,7 @@ SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 
 # 导入 prompt 片段
 source "$SCRIPT_DIR/prompt/prompt_plan.sh"
+source "$SCRIPT_DIR/prompt/prompt_execute.sh"
 
 #==============================================================================
 # VERBOSE OUTPUT RULES - Injected into all prompts to save tokens
