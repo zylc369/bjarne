@@ -62,7 +62,8 @@ OUTCOME_VERIFICATION:
 - Follow existing patterns in codebase
 - Match existing code style
 
-## File Path
+## Directory and File Path
+- Working directory: $BJARNE_PROJECT_ROOT
 - .task → $task_file_path
 
 DO NOT implement unless explicitly asked. Just plan.

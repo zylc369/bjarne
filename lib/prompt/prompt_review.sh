@@ -135,7 +135,8 @@ TESTS_PASSED: yes
 ISSUES: none
 \`\`\`
 
-## File Path
+## Directory and File Path
+- Working directory: $BJARNE_PROJECT_ROOT
 - .task → $task_file_path
 EOF
     

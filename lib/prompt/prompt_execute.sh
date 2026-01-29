@@ -43,6 +43,9 @@ Mark the task complete in TASKS.md with a short note if you learned something us
 Only add a note if it would help future tasks (e.g., "used X instead of Y", "requires Z first").
 
 Then commit: "feat: [task description]"
+
+## Directory and File Path
+- Working directory: $BJARNE_PROJECT_ROOT
 EOF
     
     echo "$prompt_content"

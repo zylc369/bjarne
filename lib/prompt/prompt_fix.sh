@@ -111,7 +111,8 @@ If TRUE code blocker (rare - only security/data issues with no fix):
 - Add blocker note: \`- [ ] Task description ⚠️ Blocked: [reason]\`
 - Keep .task file for context
 
-## File Path
+## Directory and File Path
+- Working directory: $BJARNE_PROJECT_ROOT
 - .task → $task_file_path
 EOF
     
