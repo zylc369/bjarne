@@ -4,6 +4,10 @@
 # -u: 使用未定义变量时报错
 set -eu
 
+LIB_PROMPT_INIT_SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
+RESOURCE_DIR=$(get_real_path "$LIB_PROMPT_INIT_SCRIPT_DIR/../../resources")
+# echo "RESOURCE_DIR=$RESOURCE_DIR"
+
 get_init_prompt() {
     local task_file_path="${1:-$DEFAULT_CURRENT_TASK_FILE_PATH}"
     read -r -d '' prompt_content << EOF
