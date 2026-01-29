@@ -112,7 +112,6 @@ If TRUE code blocker (rare - only security/data issues with no fix):
 
 ## Directory and File Path
 - Working directory: \`$BJARNE_PROJECT_ROOT\`
-- .task → In working directory
 EOF
     
     echo "$prompt_content"

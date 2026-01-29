@@ -136,7 +136,6 @@ ISSUES: none
 
 ## Directory and File Path
 - Working directory: \`$BJARNE_PROJECT_ROOT\`
-- .task → In working directory
 EOF
     
     echo "$prompt_content"
