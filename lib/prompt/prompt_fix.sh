@@ -1,3 +1,12 @@
+#!/bin/bash
+
+# -e: 命令失败时立即退出
+# -u: 使用未定义变量时报错
+set -eu
+
+get_fix_prompt() {
+local task_file_path="${1:-$DEFAULT_CURRENT_TASK_FILE_PATH}"
+    read -r -d '' prompt_content << EOF
 # FIX STEP
 
 **IMPORTANT: This is step 4 of 4 in an automated pipeline (PLAN → EXECUTE → REVIEW → FIX).**
@@ -16,7 +25,7 @@ If REVIEW shows:
 
 Then there is NOTHING for you to do. Simply:
 1. Delete the .task file
-2. Ensure task is marked `- [x]` in TASKS.md
+2. Ensure task is marked \`- [x]\` in TASKS.md
 3. STOP IMMEDIATELY - do NOT implement new code, do NOT start new tasks
 
 The FIX step ONLY fixes problems found by REVIEW. It does NOT:
@@ -47,12 +56,12 @@ Environment issues are SOLVABLE. You must:
 1. Read the REMEDIATION from .task file
 2. ADD A NEW TASK to TASKS.md to fix the environment issue
    - Insert it BEFORE the current task (so it runs next iteration)
-   - Format: `- [ ] Setup: [remediation action]`
+   - Format: \`- [ ] Setup: [remediation action]\`
    - Examples:
-     - `- [ ] Setup: Install Chromium and dependencies in Dockerfile.dev`
-     - `- [ ] Setup: Add missing npm package X to dependencies`
-     - `- [ ] Setup: Configure Docker to support tool Y`
-3. Unmark current task back to `- [ ]` (it will retry after environment is fixed)
+     - \`- [ ] Setup: Install Chromium and dependencies in Dockerfile.dev\`
+     - \`- [ ] Setup: Add missing npm package X to dependencies\`
+     - \`- [ ] Setup: Configure Docker to support tool Y\`
+3. Unmark current task back to \`- [ ]\` (it will retry after environment is fixed)
 4. Delete .task file
 5. DO NOT mark as blocked - the environment task will fix it
 
@@ -73,9 +82,9 @@ When a test fails, you MUST fix the IMPLEMENTATION, not the test.
 
 **Forbidden "fixes" that are actually cheating:**
 - Mocking a return value to make the test pass
-- Weakening assertions (changing `toBe(5)` to `toBeTruthy()`)
+- Weakening assertions (changing \`toBe(5)\` to \`toBeTruthy()\`)
 - Removing test cases that fail
-- Adding `.skip` or commenting out failing tests
+- Adding \`.skip\` or commenting out failing tests
 - Stubbing the function being tested to return expected values
 
 **The ONLY time you may change a test:**
@@ -89,7 +98,7 @@ A test suite that always passes because you gutted it is worthless.
 ## After Fixing
 If all fixed + tests pass:
 - Delete .task file
-- Ensure task is marked `- [x]` in TASKS.md (with note if useful)
+- Ensure task is marked \`- [x]\` in TASKS.md (with note if useful)
 
 If environment issue found:
 - Add remediation task to TASKS.md (see above)
@@ -98,6 +107,15 @@ If environment issue found:
 - CONTINUE (not blocked!)
 
 If TRUE code blocker (rare - only security/data issues with no fix):
-- Unmark task in TASKS.md back to `- [ ]`
-- Add blocker note: `- [ ] Task description ⚠️ Blocked: [reason]`
+- Unmark task in TASKS.md back to \`- [ ]\`
+- Add blocker note: \`- [ ] Task description ⚠️ Blocked: [reason]\`
 - Keep .task file for context
+
+## File Path
+- .task → $task_file_path
+EOF
+    
+    echo "$prompt_content"
+}
+
+export -f get_fix_prompt
