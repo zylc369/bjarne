@@ -180,7 +180,7 @@ This is an EXISTING project. You MUST:
 "
 fi
 
-INIT_PROMPT=$(cat "${SCRIPT_DIR}/resources/prompt_init.md")
+INIT_PROMPT=$(get_init_prompt)
 
 IDEA_CONTENT=$(cat "$IDEA_FILE")
 

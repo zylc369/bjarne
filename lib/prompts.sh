@@ -7,6 +7,7 @@ set -eu
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 
 # 导入 prompt 片段
+source "$SCRIPT_DIR/prompt/prompt_init.sh"
 source "$SCRIPT_DIR/prompt/prompt_plan.sh"
 source "$SCRIPT_DIR/prompt/prompt_execute.sh"
 source "$SCRIPT_DIR/prompt/prompt_review.sh"

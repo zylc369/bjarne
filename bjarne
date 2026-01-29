@@ -144,9 +144,9 @@ inner_run_claude() {
 #==============================================================================
 
 PLAN_PROMPT=$(get_plan_prompt)
-EXECUTE_PROMPT=$(cat "${SCRIPT_DIR}/resources/prompt_execute.md")
-REVIEW_PROMPT=$(cat "${SCRIPT_DIR}/resources/prompt_review.md")
-FIX_PROMPT=$(cat "${SCRIPT_DIR}/resources/prompt_fix.md")
+EXECUTE_PROMPT=$(get_execute_prompt)
+REVIEW_PROMPT=$(get_review_prompt)
+FIX_PROMPT=$(get_fix_prompt)
 
 
 #==============================================================================
