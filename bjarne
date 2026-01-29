@@ -862,88 +862,93 @@ if [[ "$SAFE_MODE" == true ]]; then
     echo ""
 fi
 
-# Log session start
-log "INFO" "=== Bjarne session started ==="
-log "INFO" "Max iterations: $MAX_ITERATIONS, Safe mode: $SAFE_MODE, Batch mode: $BATCH_MODE (size: $BATCH_SIZE)"
-log "INFO" "Working directory: $(pwd)"
+# Start main loop
+main_loop() {
+    # Log session start
+    log "INFO" "=== Bjarne session started ==="
+    log "INFO" "Max iterations: $MAX_ITERATIONS, Safe mode: $SAFE_MODE, Batch mode: $BATCH_MODE (size: $BATCH_SIZE)"
+    log "INFO" "Working directory: $(pwd)"
 
-log "LIGHT" "Bjarne starting - max $MAX_ITERATIONS iterations"
-if [[ "$BATCH_MODE" == true ]]; then
-    log "LIGHT" "Batch mode: up to $BATCH_SIZE related tasks per iteration"
-fi
-log "LIGHT" "Loop: PLAN → EXECUTE → REVIEW → FIX"
-log "INFO" "Logs: $LOG_FILE"
-log "INFO" ""
-
-for i in $(seq 1 $MAX_ITERATIONS); do
-    # Load context fresh each iteration
-    load_context
-
-    # Check for remaining tasks
-    if ! grep -q '^\s*- \[ \]' "$TASK_FILE"; then
-        log "SUCCESS" "All tasks complete!"
-        rm -f "$TASK_STATE"
-        exit 0
-    fi
-
-    REMAINING=$(grep -c '^\s*- \[ \]' "$TASK_FILE" || echo "0")
-    log "LIGHT2" "=== Iteration $i/$MAX_ITERATIONS ($REMAINING tasks remaining) ==="
-
-    # Select prompts based on batch mode
+    log "LIGHT" "Bjarne starting - max $MAX_ITERATIONS iterations"
     if [[ "$BATCH_MODE" == true ]]; then
-        ACTIVE_PLAN_PROMPT=$(get_batch_plan_prompt "$BATCH_SIZE")
-        ACTIVE_EXECUTE_PROMPT=$(cat "${SCRIPT_DIR}/resources/prompt_batch_execute.md")
-        ACTIVE_REVIEW_PROMPT=$(cat "${SCRIPT_DIR}/resources/prompt_batch_review.md")
-        ACTIVE_FIX_PROMPT=$(cat "${SCRIPT_DIR}/resources/prompt_batch_fix.md")
-    else
-        ACTIVE_PLAN_PROMPT="$PLAN_PROMPT"
-        ACTIVE_EXECUTE_PROMPT="$EXECUTE_PROMPT"
-        ACTIVE_REVIEW_PROMPT="$REVIEW_PROMPT"
-        ACTIVE_FIX_PROMPT="$FIX_PROMPT"
+        log "LIGHT" "Batch mode: up to $BATCH_SIZE related tasks per iteration"
     fi
+    log "LIGHT" "Loop: PLAN → EXECUTE → REVIEW → FIX"
+    log "INFO" "Logs: $LOG_FILE"
+    log "INFO" ""
 
-    # PLAN
-    log "LIGHT3" "[1/4 PLAN] Analyzing..."
-    if ! inner_run_claude "$CONTEXT
+    for i in $(seq 1 $MAX_ITERATIONS); do
+        # Load context fresh each iteration
+        load_context
+
+        # Check for remaining tasks
+        if ! grep -q '^\s*- \[ \]' "$TASK_FILE"; then
+            log "SUCCESS" "All tasks complete!"
+            rm -f "$TASK_STATE"
+            exit 0
+        fi
+
+        REMAINING=$(grep -c '^\s*- \[ \]' "$TASK_FILE" || echo "0")
+        log "LIGHT2" "=== Iteration $i/$MAX_ITERATIONS ($REMAINING tasks remaining) ==="
+
+        # Select prompts based on batch mode
+        if [[ "$BATCH_MODE" == true ]]; then
+            ACTIVE_PLAN_PROMPT=$(get_batch_plan_prompt "$BATCH_SIZE")
+            ACTIVE_EXECUTE_PROMPT=$(cat "${SCRIPT_DIR}/resources/prompt_batch_execute.md")
+            ACTIVE_REVIEW_PROMPT=$(cat "${SCRIPT_DIR}/resources/prompt_batch_review.md")
+            ACTIVE_FIX_PROMPT=$(cat "${SCRIPT_DIR}/resources/prompt_batch_fix.md")
+        else
+            ACTIVE_PLAN_PROMPT="$PLAN_PROMPT"
+            ACTIVE_EXECUTE_PROMPT="$EXECUTE_PROMPT"
+            ACTIVE_REVIEW_PROMPT="$REVIEW_PROMPT"
+            ACTIVE_FIX_PROMPT="$FIX_PROMPT"
+        fi
+
+        # PLAN
+        log "LIGHT3" "[1/4 PLAN] Analyzing..."
+        if ! inner_run_claude "$CONTEXT
 
 $ACTIVE_PLAN_PROMPT" "PLAN" "$i"; then
-        log "ERROR" "Plan phase failed after $MAX_RETRIES retries - aborting"
-        exit 1
-    fi
+            log "ERROR" "Plan phase failed after $MAX_RETRIES retries - aborting"
+            exit 1
+        fi
 
-    if [[ ! -f "$TASK_STATE" ]]; then
-        log "ERROR" "Plan failed - no .task file"
-        continue
-    fi
+        if [[ ! -f "$TASK_STATE" ]]; then
+            log "ERROR" "Plan failed - no .task file"
+            continue
+        fi
 
-    # EXECUTE
-    log "LIGHT3" "[2/4 EXECUTE] Implementing..."
-    if ! inner_run_claude "$CONTEXT
+        # EXECUTE
+        log "LIGHT3" "[2/4 EXECUTE] Implementing..."
+        if ! inner_run_claude "$CONTEXT
 
 $ACTIVE_EXECUTE_PROMPT" "EXECUTE" "$i"; then
-        log "ERROR" "Execute phase failed after $MAX_RETRIES retries - aborting"
-        exit 1
-    fi
+            log "ERROR" "Execute phase failed after $MAX_RETRIES retries - aborting"
+            exit 1
+        fi
 
-    # REVIEW
-    log "LIGHT3" "[3/4 REVIEW] Reviewing..."
-    if ! inner_run_claude "$CONTEXT
+        # REVIEW
+        log "LIGHT3" "[3/4 REVIEW] Reviewing..."
+        if ! inner_run_claude "$CONTEXT
 
 $ACTIVE_REVIEW_PROMPT" "REVIEW" "$i"; then
-        log "ERROR" "Review phase failed after $MAX_RETRIES retries - aborting"
-        exit 1
-    fi
+            log "ERROR" "Review phase failed after $MAX_RETRIES retries - aborting"
+            exit 1
+        fi
 
-    # FIX
-    log "LIGHT3" "[4/4 FIX]${NC} Fixing..."
-    if ! inner_run_claude "$CONTEXT
+        # FIX
+        log "LIGHT3" "[4/4 FIX]${NC} Fixing..."
+        if ! inner_run_claude "$CONTEXT
 
 $ACTIVE_FIX_PROMPT" "FIX" "$i"; then
-        log "ERROR" "Fix phase failed after $MAX_RETRIES retries - aborting"
-        exit 1
-    fi
+            log "ERROR" "Fix phase failed after $MAX_RETRIES retries - aborting"
+            exit 1
+        fi
 
-    sleep 2
-done
+        sleep 2
+    done
 
-log "LIGHT" "Max iterations reached ($MAX_ITERATIONS) - exiting main loop"
+    log "LIGHT" "Max iterations reached ($MAX_ITERATIONS) - exiting main loop"
+}
+
+main_loop
