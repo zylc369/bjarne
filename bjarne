@@ -143,7 +143,7 @@ inner_run_claude() {
 # PROMPTS - Defined early so both task mode and main loop can use them
 #==============================================================================
 
-PLAN_PROMPT=$(cat "${SCRIPT_DIR}/resources/prompt_plan.md")
+PLAN_PROMPT=$(get_plan_prompt)
 EXECUTE_PROMPT=$(cat "${SCRIPT_DIR}/resources/prompt_execute.md")
 REVIEW_PROMPT=$(cat "${SCRIPT_DIR}/resources/prompt_review.md")
 FIX_PROMPT=$(cat "${SCRIPT_DIR}/resources/prompt_fix.md")
@@ -687,7 +687,7 @@ $FIX_PROMPT" "TASK_FIX"; then
 
     # Build finalize prompt - different based on worktree mode
     if [[ -n "$WORKTREE_PATH" ]]; then
-        FINALIZE_PROMPT=$(get_finalize_prompt)
+        FINALIZE_PROMPT=$(get_finalize_prompt "$WORKTREE_PATH")
     else
         FINALIZE_PROMPT=$(cat "${SCRIPT_DIR}/resources/prompt_finalize.md")
     fi
