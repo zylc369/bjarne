@@ -1,3 +1,12 @@
+#!/bin/bash
+
+# -e: 命令失败时立即退出
+# -u: 使用未定义变量时报错
+set -eu
+
+get_review_prompt() {
+    local task_file_path="${1:-$DEFAULT_CURRENT_TASK_FILE_PATH}"
+    read -r -d '' prompt_content << EOF
 # REVIEW STEP
 
 **IMPORTANT: This is step 3 of 4 in an automated pipeline (PLAN → EXECUTE → REVIEW → FIX).**
@@ -96,7 +105,7 @@ Before flagging unused code, check TASKS.md:
 Don't suppress warnings for scaffolding. Don't keep actual dead code.
 
 ## Append to .task:
-```
+\`\`\`
 REVIEW_RESULT:
 OUTCOME_ACHIEVED: yes/no
 OUTCOME_EVIDENCE: [what you checked and found]
@@ -114,14 +123,23 @@ ISSUES:
 
 SUGGESTIONS:
 - [if any, brief]
-```
+\`\`\`
 
 If all good, write:
-```
+\`\`\`
 REVIEW_RESULT:
 OUTCOME_ACHIEVED: yes
 OUTCOME_EVIDENCE: [brief proof]
 BUILD_PASSED: yes
 TESTS_PASSED: yes
 ISSUES: none
-```
+\`\`\`
+
+## File Path
+- .task → $task_file_path
+EOF
+    
+    echo "$prompt_content"
+}
+
+export -f get_review_prompt
