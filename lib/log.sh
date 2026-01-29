@@ -5,13 +5,13 @@
 set -eu
 
 # Colors
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-# BLUE='\033[0;34m'
-BLUE='\033[94m'
-RED='\033[0;31m'
-CYAN='\033[0;36m'
-NC='\033[0m'
+LOG_COLOR_GREEN='\033[0;32m'
+LOG_COLOR_YELLOW='\033[1;33m'
+# LOG_COLOR_BLUE='\033[0;34m'
+LOG_COLOR_BLUE='\033[94m'
+LOG_COLOR_RED='\033[0;31m'
+LOG_COLOR_CYAN='\033[0;36m'
+LOG_COLOR_NC='\033[0m'
 
 # Logging (use absolute path to survive worktree cd)
 DEFAULT_LOG_FILE_SUFFIX="${BJARNE_EXECUTE_SCENE:+-${BJARNE_EXECUTE_SCENE}}"
@@ -37,20 +37,20 @@ inner_log() {
     local color=""
     
     case $level in
-        # "INFO")  color=$BLUE ;;
-        "WARN")  color=$YELLOW ;;
-        "ERROR") color=$RED ;;
-        "SUCCESS") color=$GREEN ;;
+        # "INFO")  color=$LOG_COLOR_BLUE ;;
+        "WARN")  color=$LOG_COLOR_YELLOW ;;
+        "ERROR") color=$LOG_COLOR_RED ;;
+        "SUCCESS") color=$LOG_COLOR_GREEN ;;
         "LIGHT")
-            color=$CYAN
+            color=$LOG_COLOR_CYAN
             level="INFO"
             ;;
         "LIGHT2")
-            color=$YELLOW
+            color=$LOG_COLOR_YELLOW
             level="INFO"
             ;;
         "LIGHT3")
-            color=$BLUE
+            color=$LOG_COLOR_BLUE
             level="INFO"
             ;;
     esac
@@ -58,7 +58,7 @@ inner_log() {
     local log_content="[$timestamp] [$level] $msg"
 
     if [[ "$output_to_terminal" == "true" ]]; then
-        echo -e "${color}${log_content}${NC}"
+        echo -e "${color}${log_content}${LOG_COLOR_NC}"
     fi
 
     if [ -n "$file_path" ]; then
@@ -95,12 +95,6 @@ $msg
 
 #==============================================================================
 # Export variables
-export GREEN
-export YELLOW
-export BLUE
-export RED
-export CYAN
-export NC
 
 export LOG_DIR
 export LOG_FILE
