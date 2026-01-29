@@ -27,37 +27,24 @@ get_verbose_output_rules() {
 - **Database tools**: migrations, db:push, db:pull, prisma, drizzle, typeorm, sequelize
 - **Linters/Formatters**: eslint, prettier, black, flake8, clippy
 
-### REQUIRED PATTERN - Use this exact format:
+### REQUIRED PATTERN - Use this exact format, the wildcard `*` represents any number of arguments:
 \`\`\`bash
 # CORRECT - redirect and show exit code:
-npm install > $bjarne_tmp_dir/install.log 2>&1; echo "Exit code: \$?"
-npm test > $bjarne_tmp_dir/test.log 2>&1; echo "Exit code: \$?"
-npm run build > $bjarne_tmp_dir/build.log 2>&1; echo "Exit code: \$?"
-cargo build > $bjarne_tmp_dir/build.log 2>&1; echo "Exit code: \$?"
-pytest > $bjarne_tmp_dir/test.log 2>&1; echo "Exit code: \$?"
-mvn install > $bjarne_tmp_dir/install.log 2>&1; echo "Exit code: $?"
-mvn clean compile > $bjarne_tmp_dir/build.log 2>&1; echo "Exit code: $?"
-mvn compile > $bjarne_tmp_dir/build.log 2>&1; echo "Exit code: $?"
-mvn clean package > $bjarne_tmp_dir/build.log 2>&1; echo "Exit code: $?"
-mvn package > $bjarne_tmp_dir/build.log 2>&1; echo "Exit code: $?"
-mvn clean > $bjarne_tmp_dir/build.log 2>&1; echo "Exit code: $?"
-mvn test > $bjarne_tmp_dir/test.log 2>&1; echo "Exit code: $?"
-gradlew install > $bjarne_tmp_dir/install.log 2>&1; echo "Exit code: $?"
-gradlew build > $bjarne_tmp_dir/build.log 2>&1; echo "Exit code: $?"
-gradlew test > $bjarne_tmp_dir/test.log 2>&1; echo "Exit code: $?"
-gradlew assemble > $bjarne_tmp_dir/build.log 2>&1; echo "Exit code: $?"
+npm * > $bjarne_tmp_dir/command_process.log 2>&1; echo "Exit code: \$?"
+pip * > $bjarne_tmp_dir/command_process.log 2>&1; echo "Exit code: \$?"
+pip3 * > $bjarne_tmp_dir/command_process.log 2>&1; echo "Exit code: \$?"
+cargo build > $bjarne_tmp_dir/command_process.log 2>&1; echo "Exit code: \$?"
+pytest > $bjarne_tmp_dir/command_process.log 2>&1; echo "Exit code: \$?"
+mvn * > $bjarne_tmp_dir/command_process.log 2>&1; echo "Exit code: \$?"
+gradlew * > $bjarne_tmp_dir/command_process.log 2>&1; echo "Exit code: \$?"
 
 # WRONG - never do this:
-npm install          # FORBIDDEN
-npm test             # FORBIDDEN
-cargo build          # FORBIDDEN
-mvn install          # FORBIDDEN
-mvn clean compile    # FORBIDDEN
-mvn compile          # FORBIDDEN
-mvn clean package    # FORBIDDEN
-mvn package          # FORBIDDEN
-mvn clean            # FORBIDDEN
-mvn test             # FORBIDDEN
+npm *          # FORBIDDEN
+pip *          # FORBIDDEN
+pip3 *         # FORBIDDEN
+cargo build    # FORBIDDEN
+mvn *          # FORBIDDEN
+gradlew *      # FORBIDDEN
 \`\`\`
 
 ### After running, check results with:
