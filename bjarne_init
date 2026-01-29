@@ -29,7 +29,7 @@ source "$SCRIPT_DIR/lib/prompts.sh"
 source "$SCRIPT_DIR/lib/safe_mode.sh"
 source "$SCRIPT_DIR/lib/claude.sh"
 
-log "INFO" "🚀 Starting Bjarne initialization script..."
+log "LIGHT" "🚀 Starting Bjarne initialization script..."
 log "INFO" "BJARNE_EXECUTE_SCENE=$BJARNE_EXECUTE_SCENE"
 log "INFO" "SCRIPT_DIR=$SCRIPT_DIR"
 log "INFO" "BJARNE_HOME=$BJARNE_HOME"
