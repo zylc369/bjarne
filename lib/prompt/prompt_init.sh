@@ -82,6 +82,7 @@ Create specs that ADD VALUE - don't create empty scaffolds:
 
 ## Directory and File Path
 - Working directory: \`$BJARNE_PROJECT_ROOT\`. All relative paths are based here.
+- **TASKS.md**,**CONTEXT.md**,**specs/** → In the first level of the working directory.
 
 Read the **IDEA CONTENT**, understand the vision, create the planning files. Implementation happens later.
 EOF

@@ -255,7 +255,7 @@ if [[ -f "$CONTEXT_FILE" ]] && [[ -f "$TASK_FILE" ]]; then
     log "INFO" ""
     log "INFO" "Run 'bjarne' to start development"
 else
-    log "ERROR" "Initialization incomplete - check output above"
+    log "ERROR" "Initialization incomplete, $CONTEXT_FILE or $TASK_FILE not found - check output above"
 fi
 
 exit 0
