@@ -19,13 +19,13 @@ detect_safe_mode() {
     if [[ -f "$SAFE_MODE_DOCKERFILE" ]]; then
         # Check if Docker is available
         if ! command -v docker &>/dev/null; then
-            echo -e "${RED}Error: Docker required for safe mode but not found${NC}"
+            echo -e "${RED}Error: Docker required for safe mode but not found${LOG_COLOR_NC}"
             exit 1
         fi
 
         # Check if credentials exist
         if [[ ! -f "$HOME/.claude/.credentials.json" ]]; then
-            echo -e "${RED}Error: Claude credentials not found at ~/.claude/.credentials.json${NC}"
+            echo -e "${RED}Error: Claude credentials not found at ~/.claude/.credentials.json${LOG_COLOR_NC}"
             echo -e "Run 'claude' on the host first to authenticate"
             exit 1
         fi
@@ -41,14 +41,14 @@ build_docker_image() {
     local force_rebuild="$1"
 
     if [[ "$force_rebuild" == "true" ]] || ! docker image inspect "$SAFE_MODE_IMAGE_NAME" &>/dev/null 2>&1; then
-        echo -e "${CYAN}Building Docker image: $SAFE_MODE_IMAGE_NAME${NC}"
+        echo -e "${CYAN}Building Docker image: $SAFE_MODE_IMAGE_NAME${LOG_COLOR_NC}"
         docker build -t "$SAFE_MODE_IMAGE_NAME" -f "$SAFE_MODE_DOCKERFILE" . || {
-            echo -e "${RED}Docker build failed${NC}"
+            echo -e "${RED}Docker build failed${LOG_COLOR_NC}"
             exit 1
         }
-        echo -e "${GREEN}Image built successfully${NC}"
+        echo -e "${GREEN}Image built successfully${LOG_COLOR_NC}"
     else
-        echo -e "${CYAN}Using cached image: $SAFE_MODE_IMAGE_NAME${NC}"
+        echo -e "${CYAN}Using cached image: $SAFE_MODE_IMAGE_NAME${LOG_COLOR_NC}"
     fi
 }
 

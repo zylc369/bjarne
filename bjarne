@@ -366,7 +366,7 @@ if [[ "${1:-}" == "task" ]]; then
     mkdir -p "$TASK_LOG_DIR"
     echo "$TASK_DESCRIPTION" > "$TASK_ORIGINAL_FILE"
 
-    echo -e "${CYAN}Bjarne task mode${NC}"
+    echo -e "${CYAN}Bjarne task mode${LOG_COLOR_NC}"
     echo -e "  Task ID: $TASK_ID"
     echo -e "  Task dir: $TASK_DIR"
     echo -e "  Git available: $([ \"$HAS_GIT\" == \"1\" ] && echo \"yes\" || echo \"no\")"
@@ -409,14 +409,14 @@ if [[ "${1:-}" == "task" ]]; then
             WORKTREE_BRANCH="feature/${branch_slug}"
             WORKTREE_PATH="/tmp/bjarne-worktree-$TASK_ID"
 
-            echo -e "${CYAN}Creating isolated worktree...${NC}"
+            echo -e "${CYAN}Creating isolated worktree...${LOG_COLOR_NC}"
             task_log "INFO" "Creating worktree at $WORKTREE_PATH on branch $WORKTREE_BRANCH"
 
             # Create worktree with new branch
             if ! git worktree add "$WORKTREE_PATH" -b "$WORKTREE_BRANCH" 2>/dev/null; then
                 # Branch might already exist, try without -b
                 if ! git worktree add "$WORKTREE_PATH" "$WORKTREE_BRANCH" 2>/dev/null; then
-                    echo -e "${RED}Failed to create worktree - falling back to current checkout${NC}"
+                    echo -e "${RED}Failed to create worktree - falling back to current checkout${LOG_COLOR_NC}"
                     task_log "WARN" "Worktree creation failed, using current checkout"
                     WORKTREE_PATH=""
                     WORKTREE_BRANCH=""
@@ -424,8 +424,8 @@ if [[ "${1:-}" == "task" ]]; then
             fi
 
             if [[ -n "$WORKTREE_PATH" ]] && [[ -d "$WORKTREE_PATH" ]]; then
-                echo -e "${GREEN}Working in isolated worktree: $WORKTREE_PATH${NC}"
-                echo -e "${GREEN}Branch: $WORKTREE_BRANCH${NC}"
+                echo -e "${GREEN}Working in isolated worktree: $WORKTREE_PATH${LOG_COLOR_NC}"
+                echo -e "${GREEN}Branch: $WORKTREE_BRANCH${LOG_COLOR_NC}"
                 task_log "INFO" "Worktree created successfully"
 
                 # Change to worktree directory
@@ -458,7 +458,7 @@ if [[ "${1:-}" == "task" ]]; then
     # Handle safe mode for task
     if [[ "$TASK_SAFE_MODE" == true ]]; then
         if [[ ! -f "$SAFE_MODE_DOCKERFILE" ]]; then
-            echo -e "${CYAN}Generating Docker configuration for safe mode...${NC}"
+            echo -e "${CYAN}Generating Docker configuration for safe mode...${LOG_COLOR_NC}"
             generate_dockerfile
         fi
         SAFE_MODE=true
@@ -500,7 +500,7 @@ $(cat CLAUDE.md)
     #--------------------------------------------------------------------------
     # DECOMPOSE PHASE - Break task into subtasks
     #--------------------------------------------------------------------------
-    echo -e "${BLUE}[DECOMPOSE]${NC} Breaking down task..."
+    echo -e "${BLUE}[DECOMPOSE]${LOG_COLOR_NC} Breaking down task..."
     task_log "INFO" "[DECOMPOSE] Starting..."
 
     # Build git workflow instructions based on worktree status
@@ -547,7 +547,7 @@ Write subtasks to: $TASK_SUBTASKS
 $DECOMPOSE_PROMPT_BASE"
 
     if ! inner_run_claude "$DECOMPOSE_FULL_PROMPT" "DECOMPOSE"; then
-        echo -e "${RED}Decompose phase failed - aborting${NC}"
+        echo -e "${RED}Decompose phase failed - aborting${LOG_COLOR_NC}"
         task_log "ERROR" "[DECOMPOSE] Failed - aborting"
         # EXIT trap handles worktree cleanup
         exit 1
@@ -555,14 +555,14 @@ $DECOMPOSE_PROMPT_BASE"
 
     # Verify SUBTASKS.md was created
     if [[ ! -f "$TASK_SUBTASKS" ]]; then
-        echo -e "${RED}Error: SUBTASKS.md not created${NC}"
+        echo -e "${RED}Error: SUBTASKS.md not created${LOG_COLOR_NC}"
         task_log "ERROR" "[DECOMPOSE] No SUBTASKS.md created"
         # EXIT trap handles worktree cleanup
         exit 1
     fi
 
     SUBTASK_COUNT=$(grep -c '^\s*- \[ \]' "$TASK_SUBTASKS" 2>/dev/null || echo "0")
-    echo -e "${GREEN}Created $SUBTASK_COUNT subtasks${NC}"
+    echo -e "${GREEN}Created $SUBTASK_COUNT subtasks${LOG_COLOR_NC}"
     task_log "INFO" "[DECOMPOSE] Created $SUBTASK_COUNT subtasks"
     echo ""
 
@@ -619,37 +619,37 @@ EXPECTED_OUTCOMES:
 
 "
 
-    echo -e "${CYAN}Starting task loop - max $TASK_MAX_ITERATIONS iterations${NC}"
+    echo -e "${CYAN}Starting task loop - max $TASK_MAX_ITERATIONS iterations${LOG_COLOR_NC}"
     echo ""
 
     for i in $(seq 1 $TASK_MAX_ITERATIONS); do
         # Check for remaining subtasks
         if ! grep -q '^\s*- \[ \]' "$TASK_SUBTASKS"; then
-            echo -e "${GREEN}All subtasks complete!${NC}"
+            echo -e "${GREEN}All subtasks complete!${LOG_COLOR_NC}"
             task_log "INFO" "All subtasks complete"
             break
         fi
 
         REMAINING=$(grep -c '^\s*- \[ \]' "$TASK_SUBTASKS") || REMAINING=0
-        echo -e "${YELLOW}=== Task iteration $i/$TASK_MAX_ITERATIONS ($REMAINING subtasks remaining) ===${NC}"
+        echo -e "${YELLOW}=== Task iteration $i/$TASK_MAX_ITERATIONS ($REMAINING subtasks remaining) ===${LOG_COLOR_NC}"
         task_log "INFO" "=== Iteration $i/$TASK_MAX_ITERATIONS ($REMAINING remaining) ==="
 
         # Build context for this iteration (task mode header + project context)
         ITER_CONTEXT="$TASK_MODE_HEADER$PROJECT_CONTEXT$SPECS_CONTENT$CLAUDE_MD_CONTENT"
 
         # PLAN (uses main PLAN_PROMPT with task context)
-        echo -e "${BLUE}[1/4 PLAN]${NC} Analyzing subtask..."
+        echo -e "${BLUE}[1/4 PLAN]${LOG_COLOR_NC} Analyzing subtask..."
         task_log "INFO" "[PLAN] Starting..."
         if ! inner_run_claude "$ITER_CONTEXT
 
 $PLAN_PROMPT" "TASK_PLAN"; then
-            echo -e "${RED}Plan phase failed - aborting${NC}"
+            echo -e "${RED}Plan phase failed - aborting${LOG_COLOR_NC}"
             task_log "ERROR" "[PLAN] Failed - aborting"
             break
         fi
 
         if [[ ! -f "$TASK_STATE_FILE" ]]; then
-            echo -e "${RED}Plan failed - no .task file created${NC}"
+            echo -e "${RED}Plan failed - no .task file created${LOG_COLOR_NC}"
             task_log "ERROR" "[PLAN] No .task file created"
             continue
         fi
@@ -659,36 +659,36 @@ $PLAN_PROMPT" "TASK_PLAN"; then
         task_log "INFO" "[PLAN] Working on: $CURRENT_TASKS"
 
         # EXECUTE (uses main EXECUTE_PROMPT with task context)
-        echo -e "${BLUE}[2/4 EXECUTE]${NC} Implementing..."
+        echo -e "${BLUE}[2/4 EXECUTE]${LOG_COLOR_NC} Implementing..."
         task_log "INFO" "[EXECUTE] Starting..."
         if ! inner_run_claude "$ITER_CONTEXT
 
 $EXECUTE_PROMPT" "TASK_EXECUTE"; then
-            echo -e "${RED}Execute phase failed - aborting${NC}"
+            echo -e "${RED}Execute phase failed - aborting${LOG_COLOR_NC}"
             task_log "ERROR" "[EXECUTE] Failed - aborting"
             break
         fi
         task_log "INFO" "[EXECUTE] Complete"
 
         # REVIEW (uses main REVIEW_PROMPT with task context)
-        echo -e "${BLUE}[3/4 REVIEW]${NC} Reviewing..."
+        echo -e "${BLUE}[3/4 REVIEW]${LOG_COLOR_NC} Reviewing..."
         task_log "INFO" "[REVIEW] Starting..."
         if ! inner_run_claude "$ITER_CONTEXT
 
 $REVIEW_PROMPT" "TASK_REVIEW"; then
-            echo -e "${RED}Review phase failed - aborting${NC}"
+            echo -e "${RED}Review phase failed - aborting${LOG_COLOR_NC}"
             task_log "ERROR" "[REVIEW] Failed - aborting"
             break
         fi
         task_log "INFO" "[REVIEW] Complete"
 
         # FIX (uses main FIX_PROMPT with task context)
-        echo -e "${BLUE}[4/4 FIX]${NC} Fixing..."
+        echo -e "${BLUE}[4/4 FIX]${LOG_COLOR_NC} Fixing..."
         task_log "INFO" "[FIX] Starting..."
         if ! inner_run_claude "$ITER_CONTEXT
 
 $FIX_PROMPT" "TASK_FIX"; then
-            echo -e "${RED}Fix phase failed - aborting${NC}"
+            echo -e "${RED}Fix phase failed - aborting${LOG_COLOR_NC}"
             task_log "ERROR" "[FIX] Failed - aborting"
             break
         fi
@@ -705,7 +705,7 @@ $FIX_PROMPT" "TASK_FIX"; then
     # FINALIZE - Push, create PR, generate summary (Claude handles git workflow)
     #--------------------------------------------------------------------------
     echo ""
-    echo -e "${CYAN}[FINALIZE]${NC} Wrapping up task..."
+    echo -e "${CYAN}[FINALIZE]${LOG_COLOR_NC} Wrapping up task..."
     task_log "INFO" "[FINALIZE] Starting..."
 
     # Build finalize prompt - different based on worktree mode
@@ -732,7 +732,7 @@ $(cat "$TASK_SUBTASKS" 2>/dev/null || echo "No subtasks file found")
 
     # Run finalize phase
     if ! inner_run_claude "$FINALIZE_PROMPT" "FINALIZE"; then
-        echo -e "${YELLOW}Finalize phase had issues - check output above${NC}"
+        echo -e "${YELLOW}Finalize phase had issues - check output above${LOG_COLOR_NC}"
         task_log "WARN" "[FINALIZE] Had issues"
     else
         task_log "INFO" "[FINALIZE] Complete"
@@ -754,12 +754,12 @@ $(cat "$TASK_SUBTASKS" 2>/dev/null || echo "No subtasks file found")
 
     # Output completion
     echo ""
-    echo -e "${GREEN}========================================${NC}"
-    echo -e "${GREEN}TASK COMPLETE${NC}"
-    echo -e "${GREEN}========================================${NC}"
+    echo -e "${GREEN}========================================${LOG_COLOR_NC}"
+    echo -e "${GREEN}TASK COMPLETE${LOG_COLOR_NC}"
+    echo -e "${GREEN}========================================${LOG_COLOR_NC}"
 
     # Cleanup task state directory
-    echo -e "\n${CYAN}Cleaning up task state...${NC}"
+    echo -e "\n${CYAN}Cleaning up task state...${LOG_COLOR_NC}"
     rm -rf "$TASK_DIR"
     log "SUCCESS" "Done"
     exit 0
@@ -960,7 +960,7 @@ $ACTIVE_REVIEW_PROMPT" "REVIEW" "$i"; then
         fi
 
         # FIX
-        log "LIGHT3" "[4/4 FIX]${NC} Fixing..."
+        log "LIGHT3" "[4/4 FIX]${LOG_COLOR_NC} Fixing..."
         if ! inner_run_claude "$CONTEXT
 
 $ACTIVE_FIX_PROMPT" "FIX" "$i"; then
