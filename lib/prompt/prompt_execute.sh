@@ -33,18 +33,12 @@ You may read files when needed for implementation, but prioritize writing code o
 - Comments explain WHY not WHAT
 
 ## When Done
-Mark the task complete in TASKS.md with a short note if you learned something useful:
-- Simple completion: \`- [x] Task description\`
-- With note: \`- [x] Task description → Note: [one-line insight]\`
-
-Only add a note if it would help future tasks (e.g., "used X instead of Y", "requires Z first").
-
-Then commit: "feat: [task description]"
+Read a.md [from PROMPT FRAGMENT DIRECTORY].
 
 ## Directory and File Path
 - **Working directory**: \`$BJARNE_PROJECT_ROOT\`. All relative paths are based here.
 - **TASKS.md**,**CONTEXT.md**,**specs/**: In the first level of the working directory.
-- **Prompt fragment directory**: \`$LIB_PROMPT_INIT_RESOURCE_PROMPTS_DIR\`.
+- **PROMPT FRAGMENT DIRECTORY**: \`$LIB_PROMPT_INIT_RESOURCE_PROMPTS_DIR\`.
 EOF
     
     echo "$prompt_content"
