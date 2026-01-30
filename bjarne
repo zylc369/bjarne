@@ -88,6 +88,7 @@ init_claude_session() {
         # 两个变量都不为空时
         return 0
     fi
+    # echo "[init_claude_session]BJARNE_CLAUDE_SESSION_IS_NEW=$BJARNE_CLAUDE_SESSION_IS_NEW,BJARNE_CLAUDE_SESSION_ID=$BJARNE_CLAUDE_SESSION_ID" >&2
 
     # 检查文件是否存在且不为空
     if [[ ! -f "$BJARNE_CLAUDE_SESSION_FILE" ]] || [[ ! -s "$BJARNE_CLAUDE_SESSION_FILE" ]]; then
@@ -104,16 +105,14 @@ init_claude_session() {
         BJARNE_CLAUDE_SESSION_ID="$session_id"
     fi
 
-    log "LIGHT" "Claude session initialization completed. is_new:$is_new, session_id:$session_id."
+    log "LIGHT" "Claude session initialization completed. is_new:$BJARNE_CLAUDE_SESSION_IS_NEW, session_id:$BJARNE_CLAUDE_SESSION_ID." >&2
 }
 
 get_claude_session_is_new() {
-    init_claude_session
     echo "$BJARNE_CLAUDE_SESSION_IS_NEW"
 }
 
 get_claude_session_id() {
-    init_claude_session
     echo "$BJARNE_CLAUDE_SESSION_ID"
 }
 
@@ -132,6 +131,8 @@ SAFE_MODE=false
 
 INNER_RUN_CLAUDE_FIRST_RUN=true
 inner_run_claude() {
+    init_claude_session
+
     local user_prompt="$1"
     local phase="$2"
     local loop_count="${3:-}"
