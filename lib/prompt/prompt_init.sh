@@ -58,10 +58,10 @@ Unless user explicitly says "no tests", you MUST include testing:
 ## Phase 3: Create Files
 
 ### 1. CONTEXT.md (static reference for development)
-Read file creation specifications:\`$LIB_PROMPT_INIT_RESOURCE_PROMPTS_DIR/prompt_init_create_context_file_specs.md\`
+Read prompt_init_create_context_file_specs.md [in PROMPT FRAGMENT DIRECTORY].
 
 ### 2. TASKS.md
-Read file creation specifications:\`$LIB_PROMPT_INIT_RESOURCE_PROMPTS_DIR/prompt_init_create_tasks_file_specs.md\`
+Read prompt_init_create_tasks_file_specs.md [in PROMPT FRAGMENT DIRECTORY].
 
 ### 3. specs/ folder (only if needed)
 Create specs that ADD VALUE - don't create empty scaffolds:

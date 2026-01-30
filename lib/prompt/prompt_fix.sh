@@ -51,18 +51,7 @@ The implementation doesn't do what the task required. You must:
 This is NOT optional - a task without its outcome is not done.
 
 ## Handling ENVIRONMENT_ISSUES (Critical!)
-Environment issues are SOLVABLE. You must:
-1. Read the REMEDIATION from .task file
-2. ADD A NEW TASK to TASKS.md to fix the environment issue
-   - Insert it BEFORE the current task (so it runs next iteration)
-   - Format: \`- [ ] Setup: [remediation action]\`
-   - Examples:
-     - \`- [ ] Setup: Install Chromium and dependencies in Dockerfile.dev\`
-     - \`- [ ] Setup: Add missing npm package X to dependencies\`
-     - \`- [ ] Setup: Configure Docker to support tool Y\`
-3. Unmark current task back to \`- [ ]\` (it will retry after environment is fixed)
-4. Delete .task file
-5. DO NOT mark as blocked - the environment task will fix it
+Read prompt_fix_handling_env_issues_rules.md [in PROMPT FRAGMENT DIRECTORY].
 
 ## Your Job for Code Issues
 1. Fix BLOCKERS (mandatory)
@@ -77,38 +66,10 @@ you MUST fix it. Don't skip issues because "another task caused it."
 A broken codebase blocks all future work - fix it now.
 
 ## NEVER Cheat on Tests
-When a test fails, you MUST fix the IMPLEMENTATION, not the test.
-
-**Forbidden "fixes" that are actually cheating:**
-- Mocking a return value to make the test pass
-- Weakening assertions (changing \`toBe(5)\` to \`toBeTruthy()\`)
-- Removing test cases that fail
-- Adding \`.skip\` or commenting out failing tests
-- Stubbing the function being tested to return expected values
-
-**The ONLY time you may change a test:**
-- The test itself has a bug (wrong expected value, typo)
-- Upstream changes made the test's assumptions invalid (API changed, schema changed)
-- AND you verify the test still tests meaningful behavior after your change
-
-If a test fails, the test is doing its job - it found a bug. Fix the bug.
-A test suite that always passes because you gutted it is worthless.
+Read prompt_fix_never_cheat_on_tests_rules.md [in PROMPT FRAGMENT DIRECTORY].
 
 ## After Fixing
-If all fixed + tests pass:
-- Delete .task file
-- Ensure task is marked \`- [x]\` in TASKS.md (with note if useful)
-
-If environment issue found:
-- Add remediation task to TASKS.md (see above)
-- Unmark current task
-- Delete .task file
-- CONTINUE (not blocked!)
-
-If TRUE code blocker (rare - only security/data issues with no fix):
-- Unmark task in TASKS.md back to \`- [ ]\`
-- Add blocker note: \`- [ ] Task description ⚠️ Blocked: [reason]\`
-- Keep .task file for context
+Read prompt_fix_after_fixing_rules.md [in PROMPT FRAGMENT DIRECTORY].
 
 ## Directory and File Path
 - **Working directory**: \`$BJARNE_PROJECT_ROOT\`. All relative paths are based here.

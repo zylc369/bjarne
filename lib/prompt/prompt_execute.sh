@@ -33,7 +33,7 @@ You may read files when needed for implementation, but prioritize writing code o
 - Comments explain WHY not WHAT
 
 ## When Done
-Read a.md [from PROMPT FRAGMENT DIRECTORY].
+Read prompt_execute_when_done_rules.md [in PROMPT FRAGMENT DIRECTORY].
 
 ## Directory and File Path
 - **Working directory**: \`$BJARNE_PROJECT_ROOT\`. All relative paths are based here.
