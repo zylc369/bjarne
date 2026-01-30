@@ -2,9 +2,9 @@ When a test fails, you MUST fix the IMPLEMENTATION, not the test.
 
 **Forbidden "fixes" that are actually cheating:**
 - Mocking a return value to make the test pass
-- Weakening assertions (changing \`toBe(5)\` to \`toBeTruthy()\`)
+- Weakening assertions (changing `toBe(5)` to `toBeTruthy()`)
 - Removing test cases that fail
-- Adding \`.skip\` or commenting out failing tests
+- Adding `.skip` or commenting out failing tests
 - Stubbing the function being tested to return expected values
 
 **The ONLY time you may change a test:**

@@ -34,33 +34,7 @@ Actually run the verification steps to confirm the outcome was achieved:
 - All PLAN steps done?
 
 ## Auto-Detect Focus Areas
-Based on what was implemented, check relevant areas:
-
-**If touched auth/passwords/tokens/API keys:**
-- Input validation and sanitization
-- No hardcoded secrets
-- Secure token handling
-
-**If touched database/SQL:**
-- Prepared statements (no SQL injection)
-- Proper error handling
-
-**If touched user input/forms:**
-- Input validation
-- XSS prevention (escape output)
-
-**If touched API endpoints:**
-- Proper response format
-- Error responses
-- Authentication checks
-
-**If touched async/state:**
-- Race condition checks
-- Error state handling
-
-**If touched UI:**
-- Matches design system (if specs/DESIGN_SYSTEM.md exists)
-- Accessibility basics
+Read prompt_review_auto_detect_focus_Areas_rules.md [in PROMPT FRAGMENT DIRECTORY].
 
 ## Run Checks
 Use TEST_COMMAND from .task file (or detect from CONTEXT.md)
@@ -71,15 +45,7 @@ Check what testing infrastructure exists in the project:
 - Testing expectations depend on context (see mode-specific guidance if present)
 
 ## Classify Issues by Type AND Severity
-
-### Issue Types:
-- 🔧 ENVIRONMENT: Missing tools, dependencies, wrong container setup, config needed
-- 💻 CODE: Bugs, logic errors, security issues, missing error handling
-
-### Severity:
-- 🔴 BLOCKER: Security vulnerabilities, data loss risk, crashes
-- 🟡 ISSUE: Bugs, logic errors, missing error handling
-- 🟢 SUGGESTION: Style improvements, minor optimizations
+Read prompt_review_classify_issues_by_type_and_severity_rules.md [in PROMPT FRAGMENT DIRECTORY].
 
 ## CRITICAL: Environment Issues Are SOLVABLE, Not Blockers
 If you encounter an environment issue (missing tool, dependency, wrong setup):
@@ -104,35 +70,7 @@ Before flagging unused code, check TASKS.md:
 Don't suppress warnings for scaffolding. Don't keep actual dead code.
 
 ## Append to .task:
-\`\`\`
-REVIEW_RESULT:
-OUTCOME_ACHIEVED: yes/no
-OUTCOME_EVIDENCE: [what you checked and found]
-BUILD_PASSED: yes/no
-TESTS_PASSED: yes/no
-
-ENVIRONMENT_ISSUES:
-- [type] [description] → REMEDIATION: [how to fix]
-
-BLOCKERS:
-- [if any - includes outcome not achieved]
-
-ISSUES:
-- [if any]
-
-SUGGESTIONS:
-- [if any, brief]
-\`\`\`
-
-If all good, write:
-\`\`\`
-REVIEW_RESULT:
-OUTCOME_ACHIEVED: yes
-OUTCOME_EVIDENCE: [brief proof]
-BUILD_PASSED: yes
-TESTS_PASSED: yes
-ISSUES: none
-\`\`\`
+Read prompt_review_append_to_dot_task_rules.md [in PROMPT FRAGMENT DIRECTORY].
 
 ## Directory and File Path
 - **Working directory**: \`$BJARNE_PROJECT_ROOT\`. All relative paths are based here.

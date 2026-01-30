@@ -3,11 +3,11 @@ Break the **IDEA CONTENT** into atomic tasks WITH VERIFIABLE OUTCOMES:
 - **For existing projects**: Tasks should modify or extend existing code.
 - Then, implement the features from the **IDEA CONTENT** in logical sequence.
 - Each task completable in one iteration
-- **Format: \`- [ ] Action → Outcome\`**
+- **Format: `- [ ] Action → Outcome`**
   - Action: What to implement
   - Outcome: How to verify it worked (must be machine-checkable)
 - Examples:
-  - \`- [ ] Add login button to navbar → Button with href="/login" exists in header\`
-  - \`- [ ] Create /api/users endpoint → GET /api/users returns 200 with JSON array\`
-  - \`- [ ] Add email validation → Invalid email shows error message\`
+  - `- [ ] Add login button to navbar → Button with href="/login" exists in header`
+  - `- [ ] Create /api/users endpoint → GET /api/users returns 200 with JSON array`
+  - `- [ ] Add email validation → Invalid email shows error message`
 - Number of tasks should match project scope (don't pad)
