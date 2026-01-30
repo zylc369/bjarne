@@ -12,6 +12,9 @@ TASK_STATE=".task"
 
 # Directories
 BJARNE_HOME="$HOME/.bjarne"
+LIB_CONSTS_SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
+RESOURCES_DIR=$(get_real_path "$LIB_CONSTS_SCRIPT_DIR/../resources")
+RESOURCES_PROMPTS_DIR="$RESOURCES_DIR/prompts"
 
 BJARNE_PROJECT_ROOT="$(pwd)"
 PROJECT_BJARNE_DIR="$BJARNE_PROJECT_ROOT/.bjarne"

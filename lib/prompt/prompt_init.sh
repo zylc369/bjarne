@@ -4,11 +4,6 @@
 # -u: 使用未定义变量时报错
 set -eu
 
-LIB_PROMPT_INIT_SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
-LIB_PROMPT_INIT_RESOURCE_DIR=$(get_real_path "$LIB_PROMPT_INIT_SCRIPT_DIR/../../resources")
-LIB_PROMPT_INIT_RESOURCE_PROMPTS_DIR="$LIB_PROMPT_INIT_RESOURCE_DIR/prompts"
-# echo "LIB_PROMPT_INIT_RESOURCE_DIR=$LIB_PROMPT_INIT_RESOURCE_DIR"
-
 get_init_prompt() {
     local task_file_path="${1:-$DEFAULT_CURRENT_TASK_FILE_PATH}"
     read -r -d '' prompt_content << EOF
@@ -83,7 +78,7 @@ Create specs that ADD VALUE - don't create empty scaffolds:
 ## Directory and File Path
 - **Working directory**: \`$BJARNE_PROJECT_ROOT\`. All relative paths are based here.
 - **TASKS.md**,**CONTEXT.md**,**specs/**: In the first level of the working directory.
-- **PROMPT FRAGMENT DIRECTORY** \`$LIB_PROMPT_INIT_RESOURCE_PROMPTS_DIR\`.
+- **PROMPT FRAGMENT DIRECTORY** \`$RESOURCES_PROMPTS_DIR\`.
 
 Read the **IDEA CONTENT**, understand the vision, create the planning files. Implementation happens later.
 EOF

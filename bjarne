@@ -48,13 +48,13 @@ export BJARNE_TMP_DIR
 export BJARNE_EXECUTE_SCENE=""
 
 # Source library components
+source "$SCRIPT_DIR/lib/tools.sh"
 source "$SCRIPT_DIR/lib/consts.sh"
 
 # session相关变量
 BJARNE_CLAUDE_SESSION_FILE="${PROJECT_BJARNE_DIR}/claude_session_id"
 
 # Source library components
-source "$SCRIPT_DIR/lib/tools.sh"
 source "$SCRIPT_DIR/lib/log.sh"
 source "$SCRIPT_DIR/lib/prompts.sh"
 source "$SCRIPT_DIR/lib/safe_mode.sh"
