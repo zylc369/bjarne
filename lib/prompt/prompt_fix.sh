@@ -111,7 +111,9 @@ If TRUE code blocker (rare - only security/data issues with no fix):
 - Keep .task file for context
 
 ## Directory and File Path
-- Working directory: \`$BJARNE_PROJECT_ROOT\`. All relative paths are based here.
+- **Working directory**: \`$BJARNE_PROJECT_ROOT\`. All relative paths are based here.
+- **TASKS.md**,**CONTEXT.md**,**specs/**: In the first level of the working directory.
+- **Prompt phrase fragment directory**: \`$LIB_PROMPT_INIT_RESOURCE_PROMPTS_DIR\`.
 EOF
     
     echo "$prompt_content"

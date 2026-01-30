@@ -62,7 +62,9 @@ OUTCOME_VERIFICATION:
 - Match existing code style
 
 ## Directory and File Path
-- Working directory: \`$BJARNE_PROJECT_ROOT\`. All relative paths are based here.
+- **Working directory**: \`$BJARNE_PROJECT_ROOT\`. All relative paths are based here.
+- **TASKS.md**,**CONTEXT.md**,**.task**,**specs/**: In the first level of the working directory.
+- **Prompt phrase fragment directory**: \`$LIB_PROMPT_INIT_RESOURCE_PROMPTS_DIR\`.
 
 DO NOT implement unless explicitly asked. Just plan.
 EOF
