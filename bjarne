@@ -960,7 +960,7 @@ $ACTIVE_REVIEW_PROMPT" "REVIEW" "$i"; then
         fi
 
         # FIX
-        log "LIGHT3" "[4/4 FIX]${LOG_COLOR_NC} Fixing..."
+        log "LIGHT3" "[4/4 FIX] Fixing..."
         if ! inner_run_claude "$CONTEXT
 
 $ACTIVE_FIX_PROMPT" "FIX" "$i"; then
